@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How It Works — NFL Oracle AI Prediction Model</title>
+<meta name="description" content="Learn how NFL Oracle uses machine learning, Elo ratings, and EPA statistics to predict NFL game outcomes with up to 65% accuracy.">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080b10;--surface:#0e1420;--surface2:#161d2e;--border:rgba(255,255,255,0.07);--accent:#00e5ff;--accent2:#ff3b5c;--accent3:#7fff6e;--gold:#ffc940;--text:#e8eef8;--muted:#7a8aa0}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;line-height:1.75}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.02) 1px,transparent 1px);background-size:60px 60px;pointer-events:none}
+header{position:sticky;top:0;z-index:100;background:rgba(8,11,16,0.95);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem}
+.header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--text)}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),#0066ff);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.logo-text{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:2px}
+.nav{display:flex;gap:8px;align-items:center}
+.nav-btn{color:var(--muted);font-size:0.78rem;font-weight:600;text-decoration:none;padding:6px 14px;border:1px solid var(--border);border-radius:8px;transition:all 0.2s}
+.nav-btn:hover,.nav-btn.active{color:var(--accent);border-color:var(--accent)}
+
+/* Hero */
+.hero{max-width:900px;margin:0 auto;padding:4rem 2rem 2rem;text-align:center}
+.hero-tag{font-size:0.65rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:1rem}
+.hero h1{font-family:'Bebas Neue',sans-serif;font-size:3.5rem;letter-spacing:3px;line-height:1.1;margin-bottom:1rem}
+.hero p{color:var(--muted);font-size:1.05rem;max-width:600px;margin:0 auto 2rem}
+.hero-stats{display:flex;justify-content:center;gap:3rem;flex-wrap:wrap;padding:2rem;background:var(--surface);border:1px solid var(--border);border-radius:16px;margin-top:2rem}
+.hs{text-align:center}
+.hs-num{font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:var(--accent);line-height:1}
+.hs-lbl{font-size:0.65rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:4px}
+
+main{max-width:900px;margin:0 auto;padding:2rem}
+
+/* Section */
+.section{margin-bottom:4rem}
+.section-tag{font-size:0.6rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--accent);margin-bottom:0.5rem}
+.section h2{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:2px;margin-bottom:1rem}
+.section p{color:var(--muted);margin-bottom:1rem}
+.section ul{color:var(--muted);padding-left:1.5rem;margin-bottom:1rem}
+.section ul li{margin-bottom:0.5rem}
+
+/* Feature grid */
+.feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.2rem;margin:1.5rem 0}
+.feature-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.4rem}
+.fc-icon{font-size:1.8rem;margin-bottom:0.8rem}
+.fc-title{font-weight:700;margin-bottom:0.4rem;font-size:0.95rem}
+.fc-desc{color:var(--muted);font-size:0.82rem;line-height:1.5}
+
+/* Pipeline steps */
+.pipeline{display:flex;flex-direction:column;gap:0;margin:1.5rem 0}
+.pipe-step{display:flex;gap:1.2rem;padding:1.2rem;background:var(--surface);border:1px solid var(--border);border-radius:0;position:relative}
+.pipe-step:first-child{border-radius:12px 12px 0 0}
+.pipe-step:last-child{border-radius:0 0 12px 12px}
+.pipe-step+.pipe-step{border-top:none}
+.pipe-num{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--accent);opacity:0.4;width:40px;flex-shrink:0;line-height:1}
+.pipe-content h3{font-weight:700;margin-bottom:0.3rem;font-size:0.9rem}
+.pipe-content p{color:var(--muted);font-size:0.82rem;margin:0}
+
+/* Stat table */
+.stat-table{width:100%;border-collapse:collapse;margin:1.5rem 0}
+.stat-table th{font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.stat-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.85rem;color:var(--muted)}
+.stat-table td:first-child{color:var(--text);font-weight:600}
+.stat-table tr:last-child td{border-bottom:none}
+
+/* Accuracy bar */
+.acc-bar-wrap{background:var(--surface2);border-radius:4px;height:8px;overflow:hidden;margin:4px 0}
+.acc-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),#0066ff)}
+
+/* FAQ */
+.faq{margin:1.5rem 0}
+.faq-item{border-bottom:1px solid var(--border);padding:1.2rem 0}
+.faq-item:last-child{border-bottom:none}
+.faq-q{font-weight:700;margin-bottom:0.5rem;font-size:0.95rem}
+.faq-a{color:var(--muted);font-size:0.87rem}
+
+/* CTA */
+.cta{background:linear-gradient(135deg,rgba(0,229,255,0.08),rgba(0,102,255,0.08));border:1px solid rgba(0,229,255,0.2);border-radius:16px;padding:2.5rem;text-align:center;margin:3rem 0}
+.cta h2{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:2px;margin-bottom:0.8rem}
+.cta p{color:var(--muted);margin-bottom:1.5rem}
+.cta-btn{display:inline-block;background:var(--accent);color:#000;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9rem;transition:opacity 0.2s}
+.cta-btn:hover{opacity:0.85}
+
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+footer{border-top:1px solid var(--border);padding:1.5rem 2rem;text-align:center;color:var(--muted);font-size:0.75rem;margin-top:2rem}
+@media(max-width:600px){.hero h1{font-size:2.5rem}.hero-stats{gap:1.5rem}.feature-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a class="logo" href="/"><div class="logo-icon">🏈</div><div class="logo-text">NFL Oracle</div></a>
+    <nav class="nav">
+      <a href="/" class="nav-btn">🏆 Predictions</a>
+      <a href="/power-rankings" class="nav-btn">⚡ Rankings</a>
+      <a href="/about" class="nav-btn active">About</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-tag">How NFL Oracle Works</div>
+  <h1>AI-Powered NFL Game Predictions</h1>
+  <p>NFL Oracle combines machine learning, Elo rating systems, and play-by-play EPA statistics to predict NFL game outcomes — updated every week with the latest data.</p>
+  <div class="hero-stats">
+    <div class="hs"><div class="hs-num">83%</div><div class="hs-lbl">Cross-Val Accuracy</div></div>
+    <div class="hs"><div class="hs-num">43</div><div class="hs-lbl">Model Features</div></div>
+    <div class="hs"><div class="hs-num">3</div><div class="hs-lbl">Seasons of Data</div></div>
+    <div class="hs"><div class="hs-num">188K+</div><div class="hs-lbl">Plays Analyzed</div></div>
+  </div>
+</div>
+
+<main>
+
+  <!-- What is EPA -->
+  <div class="section">
+    <div class="section-tag">The Foundation</div>
+    <h2>Why EPA Is Better Than Yards</h2>
+    <p>Traditional NFL statistics — yards, completion percentage, touchdowns — are context-blind. A 5-yard gain on 3rd-and-4 is a success. A 5-yard gain on 3rd-and-10 is a failure. They look identical in the box score.</p>
+    <p><strong>Expected Points Added (EPA)</strong> solves this. Developed from decades of NFL play-by-play data, EPA measures the change in expected points a team gains or loses on every single play. A team's rolling EPA per play is one of the most predictive statistics in football — far better than raw yards or even scoring alone.</p>
+    <p>NFL Oracle uses EPA data from <a href="https://www.nflfastr.com" target="_blank">nflfastR</a>, the most comprehensive open-source NFL analytics dataset, covering every play from 2022 through the current season.</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="fc-icon">⚡</div>
+        <div class="fc-title">Offensive EPA</div>
+        <div class="fc-desc">Measures how much value a team's offense adds per play. Teams with consistently positive offensive EPA win more games regardless of their record.</div>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">🛡</div>
+        <div class="fc-title">Defensive EPA Allowed</div>
+        <div class="fc-desc">The EPA a defense gives up per play. Elite defenses post negative EPA allowed — they take points off the board rather than adding them.</div>
+      </div>
+      <div class="feature-card">
+        <div class="fc-icon">✈️</div>
+        <div class="fc-title">Pass vs. Rush EPA</div>
+        <div class="fc-desc">Passing EPA and rushing EPA are tracked separately, since teams vary dramatically in how they generate offensive value.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Elo section -->
+  <div class="section">
+    <div class="section-tag">Team Ratings</div>
+    <h2>The Elo System</h2>
+    <p>NFL Oracle uses a <strong>FiveThirtyEight-style Elo rating system</strong> to track team strength over time. Originally developed for chess, Elo is now widely used in sports analytics because it handles head-to-head competition naturally.</p>
+    <p>Every team starts at 1500. After each game, Elo shifts based on two factors: the expected outcome (based on pre-game Elo difference) and the actual outcome. Beating a stronger team earns more Elo. Losing to a weaker team costs more.</p>
+
+    <table class="stat-table">
+      <thead><tr><th>Elo Range</th><th>Team Quality</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>1600+</td><td>Elite / Championship contender</td><td>Super Bowl winner</td></tr>
+        <tr><td>1540–1600</td><td>Strong playoff team</td><td>Division winner</td></tr>
+        <tr><td>1480–1540</td><td>Average / Bubble playoff team</td><td>Wild card contender</td></tr>
+        <tr><td>1420–1480</td><td>Below average</td><td>Missing playoffs</td></tr>
+        <tr><td>Below 1420</td><td>Rebuilding / Weak</td><td>Top draft pick</td></tr>
+      </tbody>
+    </table>
+
+    <p>Between seasons, Elo ratings regress 55% toward the mean of 1500 — accounting for roster turnover, coaching changes, and regression to the mean. A dynasty team from 3 years ago doesn't get to carry that Elo into the present season.</p>
+  </div>
+
+  <!-- Model pipeline -->
+  <div class="section">
+    <div class="section-tag">The Model</div>
+    <h2>How Predictions Are Generated</h2>
+    <p>Every prediction runs through a 6-step pipeline that processes raw play-by-play data into a calibrated win probability.</p>
+
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pipe-num">01</div>
+        <div class="pipe-content">
+          <h3>Data Download</h3>
+          <p>188,000+ plays from the last 3 NFL seasons are downloaded from nflfastR. Only regular season games are used — playoffs are excluded because small-sample playoff performance introduces noise.</p>
+        </div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">02</div>
+        <div class="pipe-content">
+          <h3>Feature Engineering</h3>
+          <p>For each game, 43 features are computed from both teams' rolling statistics: offensive EPA, defensive EPA allowed, pass EPA, rush EPA, points scored/allowed, win rate, current streak, rest days, Elo ratings, and home field advantage.</p>
+        </div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">03</div>
+        <div class="pipe-content">
+          <h3>Walk-Forward Cross-Validation</h3>
+          <p>The model is validated using walk-forward CV — it's trained on early seasons and tested on later ones, exactly how it would perform in production. This prevents data leakage and gives honest accuracy estimates.</p>
+        </div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">04</div>
+        <div class="pipe-content">
+          <h3>Gradient Boosting Classifier</h3>
+          <p>A sklearn GradientBoostingClassifier with max_depth=3 and min_samples_leaf=15 is trained on all available data. Shallow trees with high minimum leaf size prevent overfitting on our ~1,000 game dataset.</p>
+        </div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">05</div>
+        <div class="pipe-content">
+          <h3>Platt Scaling Calibration</h3>
+          <p>Raw model probabilities are calibrated using Platt scaling — a logistic regression applied to the model's outputs. This ensures that when we say a team has a 70% chance, they actually win about 70% of the time.</p>
+        </div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">06</div>
+        <div class="pipe-content">
+          <h3>Ensemble Output</h3>
+          <p>The final prediction blends the calibrated GBC (70% weight) with a logistic regression model (30% weight). Ensembling reduces variance and improves calibration on edge cases.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- What-if simulator -->
+  <div class="section">
+    <div class="section-tag">Scenario Analysis</div>
+    <h2>The What-If Simulator</h2>
+    <p>Every game card includes a What-If Simulator that adjusts win probabilities based on real-world game-day factors. Unlike the base prediction (which uses season-long averages), the simulator applies empirically-grounded adjustments directly to the win probability.</p>
+
+    <table class="stat-table">
+      <thead><tr><th>Factor</th><th>Typical Impact</th><th>Based On</th></tr></thead>
+      <tbody>
+        <tr><td>Starting QB Out</td><td>7%–20% swing*</td><td>nflfastR backup QB research</td></tr>
+        <tr><td>Star EDGE Rusher Out</td><td>3.5%–7% swing*</td><td>PFF pass rush value metrics</td></tr>
+        <tr><td>Top CB Out</td><td>2.5%–5.8% swing*</td><td>Coverage grade analysis</td></tr>
+        <tr><td>WR1 Out</td><td>2.5%–7% swing*</td><td>Target share research</td></tr>
+        <tr><td>Short Rest (4 days)</td><td>~2.5% penalty</td><td>Thursday game historical splits</td></tr>
+        <tr><td>Extra Rest (bye week)</td><td>~1% bonus</td><td>Post-bye week splits</td></tr>
+        <tr><td>High Wind (25+ mph)</td><td>~4% pass penalty (both teams)</td><td>Weather EPA research</td></tr>
+        <tr><td>Cold Weather (&lt;32°F)</td><td>~2% pass penalty (both teams)</td><td>Cold weather game splits</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:0.75rem;color:var(--muted)">* Range varies by team — a pass-heavy offense loses more when their QB is out than a run-first team. Impacts scale with team-specific EPA statistics.</p>
+  </div>
+
+  <!-- Limitations -->
+  <div class="section">
+    <div class="section-tag">Honest Limitations</div>
+    <h2>What the Model Doesn't Know</h2>
+    <p>NFL Oracle is a statistical model, not a crystal ball. Here's what it doesn't account for:</p>
+    <ul>
+      <li><strong>In-season injuries</strong> — the base model uses season-long averages. Use the simulator to manually adjust for known injuries.</li>
+      <li><strong>Weather</strong> — the base prediction assumes neutral conditions. Use the simulator for wind/cold/rain adjustments.</li>
+      <li><strong>Specific matchups</strong> — the model doesn't know that Team A's offensive line struggles against Team B's defensive scheme.</li>
+      <li><strong>Motivation</strong> — Week 18 games where playoff seeds are locked, division rivalry intensity, revenge games.</li>
+      <li><strong>Coaching adjustments</strong> — great coaches make halftime adjustments that statistics can't predict.</li>
+      <li><strong>Randomness</strong> — even perfect predictions can't overcome turnover luck, special teams flukes, or officiating.</li>
+    </ul>
+    <p>The model performs best on regular-season games between teams with substantial data. Early-season games (weeks 1-3) and games involving recently-changed rosters should be treated with more uncertainty.</p>
+  </div>
+
+  <!-- FAQ -->
+  <div class="section">
+    <div class="section-tag">Common Questions</div>
+    <h2>FAQ</h2>
+    <div class="faq">
+      <div class="faq-item">
+        <div class="faq-q">How often are predictions updated?</div>
+        <div class="faq-a">The model retrains every Tuesday morning with the latest play-by-play data. Team profiles update every 6 hours via the Sleeper API. Live Vegas odds update in real-time when an API key is configured.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Why does the model sometimes favor a team with a worse record?</div>
+        <div class="faq-a">Win-loss records are a noisy signal. A team can go 6-11 while outplaying their opponents in EPA most weeks — turnover luck, close-game losses, and schedule difficulty all distort records. EPA and Elo capture underlying performance better than wins alone.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What does "confidence" mean on each prediction?</div>
+        <div class="faq-a">High confidence means one team has 68%+ win probability. Moderate means 56-68%. Low means close to 50/50. These roughly correspond to the model's certainty — high confidence picks hit more often than low confidence picks.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I use these predictions for sports betting?</div>
+        <div class="faq-a">Our predictions are for entertainment only — see our Terms of Service. That said, the model's edge comes from using EPA rather than conventional stats. The model occasionally disagrees significantly with Vegas lines, which is where value betting analysis begins. Always gamble responsibly.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Why is the home team not always favored?</div>
+        <div class="faq-a">Home field advantage is real but modest — worth approximately 2-3 points on average. A significant talent gap easily overcomes home field. The model applies a fixed home advantage adjustment to Elo ratings, reflecting the historical ~55% home win rate in the NFL.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">How is NFL Oracle different from other prediction sites?</div>
+        <div class="faq-a">Most public prediction tools use simple win-loss records or point differentials. NFL Oracle uses EPA — the same metric used by professional NFL analytics departments — combined with Elo for historical context, calibrated probabilities, and team-specific injury impact scaling. The What-If Simulator is unique in letting you model specific game-day scenarios.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta">
+    <h2>See This Week's Predictions</h2>
+    <p>Every game. Every team. Win probabilities, spread estimates, and What-If scenarios — updated weekly.</p>
+    <a href="/" class="cta-btn">View Predictions →</a>
+  </div>
+
+</main>
+
+<footer>
+  © 2026 NFL Oracle · <a href="/privacy">Privacy Policy</a> · <a href="/terms">Terms of Service</a> · <a href="/about">About</a><br>
+  Predictions powered by nflfastR data · For entertainment purposes only · Not affiliated with the NFL
+</footer>
+</body>
+</html>

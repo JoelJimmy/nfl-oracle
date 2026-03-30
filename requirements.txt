@@ -1,0 +1,16 @@
+nfl_data_py
+pandas
+scikit-learn
+xgboost
+lightgbm
+joblib
+flask
+flask-cors
+numpy
+requests
+apscheduler
+gunicorn
+redis
+flask-caching
+resend
+pywebpush

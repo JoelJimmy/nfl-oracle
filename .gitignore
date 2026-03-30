@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+logs/
+*.log
+app/models/*.pkl
+.DS_Store

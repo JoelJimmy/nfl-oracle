@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFL Oracle — Team</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── Crosshair plugin for Chart.js ─────────────────────────────────────────────
+// Draws a vertical line at the cursor and pins the tooltip to the nearest point.
+const crosshairPlugin = {
+  id: "crosshair",
+  afterDraw(chart) {
+    if (!chart._crosshairX) return;
+    const ctx = chart.ctx;
+    const yAxis = chart.scales.y;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(chart._crosshairX, yAxis.top);
+    ctx.lineTo(chart._crosshairX, yAxis.bottom);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+
+    // Draw dot on the data line at crosshair position
+    if (chart._crosshairDot) {
+      const { x, y, color } = chart._crosshairDot;
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.5)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([]);
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  afterEvent(chart, args) {
+    const event = args.event;
+    if (event.type === "mousemove") {
+      const xAxis = chart.scales.x;
+      const x = event.x;
+      if (x >= xAxis.left && x <= xAxis.right) {
+        chart._crosshairX = x;
+        // Find nearest data point x position
+        const ds = chart.data.datasets[0];
+        const meta = chart.getDatasetMeta(0);
+        let nearest = null, minDist = Infinity;
+        meta.data.forEach((pt, i) => {
+          const dist = Math.abs(pt.x - x);
+          if (dist < minDist) { minDist = dist; nearest = { pt, i }; }
+        });
+        if (nearest) {
+          chart._crosshairDot = {
+            x: nearest.pt.x,
+            y: nearest.pt.y,
+            color: ds.borderColor,
+          };
+          // Force tooltip to show at nearest point
+          chart.tooltip.setActiveElements(
+            [{ datasetIndex: 0, index: nearest.i }],
+            { x, y: event.y }
+          );
+        }
+        chart.update("none");
+      }
+    } else if (event.type === "mouseout") {
+      chart._crosshairX = null;
+      chart._crosshairDot = null;
+      chart.tooltip.setActiveElements([], {});
+      chart.update("none");
+    }
+  },
+};
+Chart.register(crosshairPlugin);
+</script>
+<style>
+:root{--bg:#080b10;--surface:#0e1420;--surface2:#161d2e;--surface3:#1d2640;--border:rgba(255,255,255,0.07);--accent:#00e5ff;--accent2:#ff3b5c;--accent3:#7fff6e;--gold:#ffc940;--text:#e8eef8;--muted:#7a8aa0}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,229,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.025) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0}
+header{position:sticky;top:0;z-index:100;background:rgba(8,11,16,0.93);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem}
+.header-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+.logo{display:flex;align-items:center;gap:12px;text-decoration:none}
+.logo-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),#0066ff);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.logo-text{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:2px;color:var(--text);line-height:1}
+.nav-btn{color:var(--muted);font-size:0.78rem;font-weight:600;text-decoration:none;letter-spacing:0.5px;padding:6px 14px;border:1px solid var(--border);border-radius:8px;transition:color 0.2s,border-color 0.2s}
+.nav-btn:hover{color:var(--accent);border-color:var(--accent)}
+.main{max-width:1100px;margin:0 auto;padding:2rem;position:relative;z-index:1}
+
+/* Hero */
+.team-hero{border-radius:16px;padding:2rem;margin-bottom:2rem;position:relative;overflow:hidden;border:1px solid var(--border)}
+.hero-bg{position:absolute;inset:0;opacity:0.06;background-size:cover}
+.hero-content{position:relative;z-index:1;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+.hero-emoji{font-size:3.5rem;line-height:1;flex-shrink:0}
+.hero-abbr{font-family:'Bebas Neue',sans-serif;font-size:3.5rem;letter-spacing:3px;line-height:1}
+.hero-name{font-size:1rem;color:var(--muted);margin-top:2px}
+.hero-div{font-size:0.65rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+.hero-stats{display:flex;gap:1.5rem;margin-left:auto;flex-wrap:wrap}
+.hs-item{text-align:center}
+.hs-val{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;line-height:1}
+.hs-lbl{font-size:0.58rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-top:2px}
+
+/* Grid layout */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.2rem;margin-bottom:1.5rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem}
+.card-title{font-size:0.6rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+.card-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Elo chart */
+.chart-wrap{position:relative;height:220px}
+
+/* Stats bar */
+.stat-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.stat-label{font-size:0.68rem;color:var(--muted);width:120px;flex-shrink:0}
+.stat-bar-wrap{flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden}
+.stat-bar-fill{height:100%;border-radius:3px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1)}
+.stat-val{font-family:'JetBrains Mono',monospace;font-size:0.68rem;width:50px;text-align:right;flex-shrink:0}
+
+/* Schedule table */
+.schedule-table{width:100%;border-collapse:collapse}
+.schedule-table th{font-size:0.58rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:6px 10px;text-align:left;border-bottom:1px solid var(--border)}
+.schedule-table td{padding:10px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:0.82rem;vertical-align:middle}
+.schedule-table tr:hover td{background:var(--surface2)}
+.prob-bar{height:6px;border-radius:3px;display:inline-block;vertical-align:middle}
+.div-chip{font-size:0.55rem;font-weight:700;letter-spacing:1px;padding:2px 6px;border-radius:3px;background:rgba(255,201,64,0.1);color:var(--gold);border:1px solid rgba(255,201,64,0.2);text-transform:uppercase}
+.home-chip{font-size:0.55rem;padding:2px 6px;border-radius:3px;background:rgba(0,229,255,0.08);color:var(--accent);border:1px solid rgba(0,229,255,0.15)}
+.away-chip{font-size:0.55rem;padding:2px 6px;border-radius:3px;background:rgba(255,255,255,0.04);color:var(--muted);border:1px solid var(--border)}
+
+/* Division rivals */
+.rival-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.rival-row:last-child{border-bottom:none}
+.rival-abbr{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:1px;width:48px;flex-shrink:0}
+.rival-h2h{font-size:0.7rem;color:var(--muted);margin-left:auto}
+.rival-prob{font-family:'JetBrains Mono',monospace;font-size:0.78rem;font-weight:700}
+
+/* SOS badge */
+.sos-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:6px;font-size:0.7rem;font-weight:700}
+.sos-hard{background:rgba(255,59,92,0.1);color:var(--accent2);border:1px solid rgba(255,59,92,0.25)}
+.sos-easy{background:rgba(127,255,110,0.1);color:var(--accent3);border:1px solid rgba(127,255,110,0.25)}
+.sos-avg{background:rgba(255,255,255,0.05);color:var(--muted);border:1px solid var(--border)}
+
+/* Loading */
+.loading-overlay{position:fixed;inset:0;background:var(--bg);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;transition:opacity 0.5s}
+.lo-title{font-family:'Bebas Neue',sans-serif;font-size:2.5rem;letter-spacing:4px;color:var(--accent)}
+.lo-bar{width:280px;height:3px;background:var(--surface2);border-radius:10px;overflow:hidden;position:relative}
+.lo-fill{position:absolute;left:-100%;top:0;height:100%;width:60%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:sweep 1.2s ease-in-out infinite}
+@keyframes sweep{from{left:-100%}to{left:100%}}
+.lo-status{font-size:0.72rem;color:var(--muted);letter-spacing:2px;font-family:'JetBrains Mono',monospace}
+
+/* EPA columns */
+.epa-pos{color:var(--accent3)}
+.epa-neg{color:var(--accent2)}
+
+footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:1.2rem 2rem;margin-top:3rem;text-align:center;font-size:0.7rem;color:var(--muted)}
+.fa{color:var(--accent);font-weight:600}
+@media(max-width:768px){.grid-2,.grid-3{grid-template-columns:1fr}.hero-stats{gap:1rem}}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="lo-title" id="loading-team">LOADING</div>
+  <div class="lo-bar"><div class="lo-fill"></div></div>
+  <div class="lo-status">Fetching team data...</div>
+</div>
+
+<header>
+  <div class="header-inner">
+    <a class="logo" href="/"><div class="logo-icon">🏈</div><div><div class="logo-text">NFL Oracle</div></div></a>
+    <div style="display:flex;align-items:center;gap:8px">
+      <a href="/" class="nav-btn">🏆 Predictions</a>
+      <a href="/rosters" class="nav-btn">📋 Rosters</a>
+      <a href="/power-rankings" class="nav-btn">⚡ Rankings</a>
+      <div style="position:relative">
+        <input id="team-jump" placeholder="Go to team..." autocomplete="off"
+          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);
+                 padding:5px 10px;border-radius:7px;font-size:0.75rem;width:120px;outline:none;
+                 font-family:'DM Sans',sans-serif"
+          oninput="showTeamJump(this.value)" onblur="setTimeout(()=>hideTeamJump(),200)"
+          onfocus="showTeamJump(this.value)">
+        <div id="team-jump-list" style="display:none;position:absolute;top:34px;right:0;
+          background:var(--surface);border:1px solid var(--border);border-radius:8px;
+          z-index:200;min-width:160px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.4)">
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+  <div id="content" style="display:none">
+
+    <!-- Hero -->
+    <div class="team-hero" id="team-hero">
+      <div class="hero-content">
+        <div class="hero-emoji" id="hero-emoji">🏈</div>
+        <div>
+          <div class="hero-abbr" id="hero-abbr" style="color:var(--accent)">—</div>
+          <div class="hero-name" id="hero-name">Loading...</div>
+          <div class="hero-div" id="hero-div" style="color:var(--muted)">—</div>
+        </div>
+        <div class="hero-stats" id="hero-stats"></div>
+      </div>
+    </div>
+
+    <!-- Stat cards row -->
+    <div class="grid-3" id="stat-cards"></div>
+
+    <!-- Elo chart + Schedule -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">⚡ Elo Trajectory</div>
+        <div class="chart-wrap"><canvas id="elo-chart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 Rolling Stats</div>
+        <div id="rolling-stats"></div>
+      </div>
+    </div>
+
+    <!-- Schedule + Division -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">📅 Upcoming Games</div>
+        <table class="schedule-table">
+          <thead><tr>
+            <th>Opponent</th><th>Home/Away</th><th>Win Prob</th><th>Type</th>
+          </tr></thead>
+          <tbody id="schedule-body"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">🏆 Division Rivals</div>
+        <div id="rivals-list"></div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer><span class="fa">NFL Oracle</span> · Team detail powered by Elo ratings + XGBoost predictions</footer>
+
+<script>
+const TEAM_META = {
+  ARI:{name:"Arizona Cardinals",  conf:"NFC",div:"NFC West",  color:"#97233F",accent:"#FFB612",emoji:"🔴"},
+  ATL:{name:"Atlanta Falcons",    conf:"NFC",div:"NFC South", color:"#A71930",accent:"#A5ACAF",emoji:"🔴"},
+  BAL:{name:"Baltimore Ravens",   conf:"AFC",div:"AFC North", color:"#9E7C0C",accent:"#9E7C0C",emoji:"🟣"},
+  BUF:{name:"Buffalo Bills",      conf:"AFC",div:"AFC East",  color:"#C60C30",accent:"#00338D",emoji:"🔵"},
+  CAR:{name:"Carolina Panthers",  conf:"NFC",div:"NFC South", color:"#0085CA",accent:"#0085CA",emoji:"🔵"},
+  CHI:{name:"Chicago Bears",      conf:"NFC",div:"NFC North", color:"#C83803",accent:"#C83803",emoji:"🟠"},
+  CIN:{name:"Cincinnati Bengals", conf:"AFC",div:"AFC North", color:"#FB4F14",accent:"#FB4F14",emoji:"🟠"},
+  CLE:{name:"Cleveland Browns",   conf:"AFC",div:"AFC North", color:"#FF3C00",accent:"#FF3C00",emoji:"🟠"},
+  DAL:{name:"Dallas Cowboys",     conf:"NFC",div:"NFC East",  color:"#869397",accent:"#869397",emoji:"🔵"},
+  DEN:{name:"Denver Broncos",     conf:"AFC",div:"AFC West",  color:"#FB4F14",accent:"#FB4F14",emoji:"🟠"},
+  DET:{name:"Detroit Lions",      conf:"NFC",div:"NFC North", color:"#0076B6",accent:"#0076B6",emoji:"🔵"},
+  GB: {name:"Green Bay Packers",  conf:"NFC",div:"NFC North", color:"#FFB612",accent:"#FFB612",emoji:"🟡"},
+  HOU:{name:"Houston Texans",     conf:"AFC",div:"AFC South", color:"#A71930",accent:"#A71930",emoji:"🔵"},
+  IND:{name:"Indianapolis Colts", conf:"AFC",div:"AFC South", color:"#A2AAAD",accent:"#A2AAAD",emoji:"🔵"},
+  JAX:{name:"Jacksonville Jaguars",conf:"AFC",div:"AFC South",color:"#9F792C",accent:"#9F792C",emoji:"🟡"},
+  KC: {name:"Kansas City Chiefs", conf:"AFC",div:"AFC West",  color:"#E31837",accent:"#FFB81C",emoji:"🔴"},
+  LV: {name:"Las Vegas Raiders",  conf:"AFC",div:"AFC West",  color:"#A5ACAF",accent:"#A5ACAF",emoji:"⚫"},
+  LAC:{name:"Los Angeles Chargers",conf:"AFC",div:"AFC West", color:"#0080C6",accent:"#FFC20E",emoji:"🔵"},
+  LAR:{name:"Los Angeles Rams",   conf:"NFC",div:"NFC West",  color:"#FFA300",accent:"#FFA300",emoji:"🔵"},
+  LA: {name:"Los Angeles Rams",   conf:"NFC",div:"NFC West",  color:"#FFA300",accent:"#FFA300",emoji:"🔵"},
+  MIA:{name:"Miami Dolphins",     conf:"AFC",div:"AFC East",  color:"#008E97",accent:"#FC4C02",emoji:"🟠"},
+  MIN:{name:"Minnesota Vikings",  conf:"NFC",div:"NFC North", color:"#FFC62F",accent:"#FFC62F",emoji:"🟣"},
+  NE: {name:"New England Patriots",conf:"AFC",div:"AFC East", color:"#C60C30",accent:"#C60C30",emoji:"🔵"},
+  NO: {name:"New Orleans Saints", conf:"NFC",div:"NFC South", color:"#D3BC8D",accent:"#D3BC8D",emoji:"⚫"},
+  NYG:{name:"New York Giants",    conf:"NFC",div:"NFC East",  color:"#A71930",accent:"#A71930",emoji:"🔵"},
+  NYJ:{name:"New York Jets",      conf:"AFC",div:"AFC East",  color:"#125740",accent:"#FFFFFF",emoji:"🟢"},
+  PHI:{name:"Philadelphia Eagles",conf:"NFC",div:"NFC East",  color:"#A5ACAF",accent:"#A5ACAF",emoji:"🟢"},
+  PIT:{name:"Pittsburgh Steelers",conf:"AFC",div:"AFC North", color:"#FFB612",accent:"#FFB612",emoji:"🟡"},
+  SF: {name:"San Francisco 49ers",conf:"NFC",div:"NFC West",  color:"#AA0000",accent:"#B3995D",emoji:"🔴"},
+  SEA:{name:"Seattle Seahawks",   conf:"NFC",div:"NFC West",  color:"#69BE28",accent:"#69BE28",emoji:"🟢"},
+  TB: {name:"Tampa Bay Buccaneers",conf:"NFC",div:"NFC South",color:"#D50A0A",accent:"#FF7900",emoji:"🔴"},
+  TEN:{name:"Tennessee Titans",   conf:"AFC",div:"AFC South", color:"#4B92DB",accent:"#4B92DB",emoji:"🔵"},
+  WAS:{name:"Washington Commanders",conf:"NFC",div:"NFC East",color:"#FFB612",accent:"#FFB612",emoji:"🟡"},
+};
+
+function _luminance(hex){const c=hex.replace("#","");const r=parseInt(c.slice(0,2),16)/255,g=parseInt(c.slice(2,4),16)/255,b=parseInt(c.slice(4,6),16)/255;const tl=v=>v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);return 0.2126*tl(r)+0.7152*tl(g)+0.0722*tl(b)}
+function readable(hex,accent){if(!hex||hex.length<6)return"var(--accent)";try{if(_luminance(hex)>=0.06)return hex;if(accent)return accent;const c=hex.replace("#","");const blend=v=>Math.round(parseInt(v,16)+(255-parseInt(v,16))*0.55).toString(16).padStart(2,"0");return"#"+blend(c.slice(0,2))+blend(c.slice(2,4))+blend(c.slice(4,6))}catch(e){return"var(--accent)"}}
+
+const team = location.pathname.split("/team/")[1]?.toUpperCase() || "";
+let _chart = null;
+
+async function init() {
+  if (!team) { window.location = "/"; return; }
+  document.getElementById("loading-team").textContent = team;
+  document.title = `NFL Oracle — ${team}`;
+
+  try {
+    const resp = await fetch(`/api/team/${team}`);
+    if (!resp.ok) throw new Error(`${resp.status}: ${resp.statusText}`);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    render(data);
+  } catch(e) {
+    document.getElementById("loading").querySelector(".lo-status").textContent =
+      `Error: ${e.message}`;
+  }
+}
+
+function render(d) {
+  const meta = TEAM_META[team] || { name:team, color:"#334", accent:"#334", emoji:"🏈", div:"" };
+  const tc   = readable(meta.color, meta.accent);
+
+  // Hero
+  document.getElementById("hero-abbr").textContent = team;
+  document.getElementById("hero-abbr").style.color = tc;
+  document.getElementById("hero-emoji").textContent = meta.emoji;
+  document.getElementById("hero-name").textContent  = meta.name;
+  document.getElementById("hero-div").textContent   = d.division || meta.div || "";
+  document.getElementById("hero-div").style.color   = tc;
+  document.getElementById("team-hero").style.borderColor = tc + "44";
+
+  // SOS badge
+  const sos = d.sos || {};
+  const sosClass = (sos.sos_label || "").includes("Hard") ? "sos-hard" :
+                   (sos.sos_label || "").includes("Easy") ? "sos-easy" : "sos-avg";
+  const sosBadge = sos.sos_rank
+    ? `<span class="sos-badge ${sosClass}">SOS Rank #${sos.sos_rank} · ${sos.sos_label}</span>` : "";
+
+  // Hero stats
+  document.getElementById("hero-stats").innerHTML = `
+<div class="hs-item">
+  <div class="hs-val" style="color:${tc}">${d.elo || "—"}</div>
+  <div class="hs-lbl">Elo Rating</div>
+</div>
+<div class="hs-item">
+  <div class="hs-val" style="color:${tc}">${d.power_score || "—"}</div>
+  <div class="hs-lbl">Power Score</div>
+</div>
+<div class="hs-item">
+  <div class="hs-val" style="color:var(--muted)">${sos.sos_rank ? `#${sos.sos_rank}` : "—"}</div>
+  <div class="hs-lbl">SOS Rank</div>
+</div>`;
+
+  // Stat cards
+  const p = d.profile || {};
+  const offEpa   = (p.roll_offensive_epa || 0).toFixed(3);
+  const defEpa   = (p.roll_defensive_epa_allowed || 0).toFixed(3);
+  const pts      = (p.roll_points_scored || 0).toFixed(1);
+  const ptsAll   = (p.roll_points_allowed || 0).toFixed(1);
+  const winRate  = ((p.roll_won || 0) * 100).toFixed(0);
+  const streak   = p.roll_streak || 0;
+  const offClass = parseFloat(offEpa) >= 0 ? "epa-pos" : "epa-neg";
+  const defClass = parseFloat(defEpa) <= 0 ? "epa-pos" : "epa-neg";
+  const streakStr = streak > 0 ? `W${streak}` : streak < 0 ? `L${Math.abs(streak)}` : "—";
+  const streakCol = streak > 0 ? "var(--accent3)" : streak < 0 ? "var(--accent2)" : "var(--muted)";
+
+  document.getElementById("stat-cards").innerHTML = `
+<div class="card" style="border-top:2px solid ${tc}">
+  <div class="card-title">⚡ Offense</div>
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;color:${tc};line-height:1">${pts}</div>
+  <div style="font-size:0.65rem;color:var(--muted);margin-bottom:8px">Avg pts scored</div>
+  <div style="font-size:0.72rem">Off EPA/play: <span class="${offClass}" style="font-family:'JetBrains Mono',monospace">${offEpa}</span></div>
+  <div style="font-size:0.72rem;margin-top:4px">Pass EPA: <span class="${p.roll_pass_epa>=0?'epa-pos':'epa-neg'}" style="font-family:'JetBrains Mono',monospace">${(p.roll_pass_epa||0).toFixed(3)}</span></div>
+  <div style="font-size:0.72rem;margin-top:4px">Rush EPA: <span class="${p.roll_rush_epa>=0?'epa-pos':'epa-neg'}" style="font-family:'JetBrains Mono',monospace">${(p.roll_rush_epa||0).toFixed(3)}</span></div>
+</div>
+<div class="card" style="border-top:2px solid var(--accent2)">
+  <div class="card-title">🛡 Defense</div>
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;color:var(--accent2);line-height:1">${ptsAll}</div>
+  <div style="font-size:0.65rem;color:var(--muted);margin-bottom:8px">Avg pts allowed</div>
+  <div style="font-size:0.72rem">Def EPA allowed: <span class="${defClass}" style="font-family:'JetBrains Mono',monospace">${defEpa}</span></div>
+  <div style="font-size:0.72rem;margin-top:4px">Turnovers: <span style="font-family:'JetBrains Mono',monospace;color:var(--muted)">${(p.roll_turnovers||0).toFixed(1)}/game</span></div>
+</div>
+<div class="card" style="border-top:2px solid var(--accent3)">
+  <div class="card-title">📈 Form</div>
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;color:${streakCol};line-height:1">${streakStr}</div>
+  <div style="font-size:0.65rem;color:var(--muted);margin-bottom:8px">Current streak</div>
+  <div style="font-size:0.72rem">Win rate: <span style="font-family:'JetBrains Mono',monospace;color:var(--accent3)">${winRate}%</span></div>
+  ${sosBadge ? `<div style="margin-top:8px">${sosBadge}</div>` : ""}
+</div>`;
+
+  // Elo chart
+  renderEloChart(d.elo_history || [], tc);
+
+  // Rolling stats bars
+  const maxEpa = 0.2;
+  const rollStats = [
+    {label:"Off EPA",  val:p.roll_offensive_epa||0, max:maxEpa, color:tc},
+    {label:"Def EPA",  val:-(p.roll_defensive_epa_allowed||0), max:maxEpa, color:"var(--accent2)"},
+    {label:"Pass EPA", val:p.roll_pass_epa||0, max:maxEpa, color:tc},
+    {label:"Rush EPA", val:p.roll_rush_epa||0, max:maxEpa, color:tc},
+    {label:"Win Rate", val:(p.roll_won||0), max:1, color:"var(--accent3)"},
+  ];
+  document.getElementById("rolling-stats").innerHTML = rollStats.map(s => {
+    const pct = Math.min(100, Math.abs(s.val / s.max) * 100);
+    const valStr = s.label === "Win Rate"
+      ? `${(s.val*100).toFixed(0)}%`
+      : s.val >= 0 ? `+${s.val.toFixed(3)}` : s.val.toFixed(3);
+    const valCol = s.label.includes("EPA")
+      ? (s.val >= 0 ? "var(--accent3)" : "var(--accent2)")
+      : "var(--accent3)";
+    return `<div class="stat-row">
+  <span class="stat-label">${s.label}</span>
+  <div class="stat-bar-wrap"><div class="stat-bar-fill" style="width:${pct}%;background:${s.color}"></div></div>
+  <span class="stat-val" style="color:${valCol}">${valStr}</span>
+</div>`;
+  }).join("");
+
+  // Schedule
+  const scheduleBody = document.getElementById("schedule-body");
+  const games = d.upcoming_games || [];
+  if (games.length) {
+    scheduleBody.innerHTML = games.map(g => {
+      const oppMeta  = TEAM_META[g.opponent] || {};
+      const oppC     = readable(oppMeta.color, oppMeta.accent);
+      const wp       = (g.win_prob * 100).toFixed(1);
+      const wpColor  = g.win_prob >= 0.6 ? "var(--accent3)" :
+                       g.win_prob >= 0.4 ? "var(--gold)" : "var(--accent2)";
+      const haDiv    = g.is_home
+        ? `<span class="home-chip">HOME</span>`
+        : `<span class="away-chip">AWAY</span>`;
+      const divChip  = g.is_division ? `<span class="div-chip">DIV</span>` : "";
+      return `<tr>
+  <td><span style="font-weight:700;color:${oppC}">${g.opponent}</span> <span style="font-size:0.65rem;color:var(--muted)">${oppMeta.name||""}</span></td>
+  <td>${haDiv}</td>
+  <td>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:${wpColor};font-weight:700">${wp}%</span>
+    <div style="margin-top:3px;height:4px;background:var(--surface2);border-radius:2px;width:80px;overflow:hidden">
+      <div style="width:${wp}%;height:100%;background:${wpColor};border-radius:2px"></div>
+    </div>
+  </td>
+  <td>${divChip}</td>
+</tr>`;
+    }).join("");
+  } else {
+    scheduleBody.innerHTML = `<tr><td colspan="4" style="color:var(--muted);font-style:italic;padding:12px">No upcoming games found</td></tr>`;
+  }
+
+  // Division rivals
+  const rivals = d.division_rivals || [];
+  document.getElementById("rivals-list").innerHTML = rivals.map(r => {
+    const rm   = TEAM_META[r.team] || {};
+    const rc   = readable(rm.color, rm.accent);
+    const wr   = r.h2h_win_rate;
+    const wrPct= (wr * 100).toFixed(0);
+    const wrColor = wr >= 0.6 ? "var(--accent3)" : wr <= 0.4 ? "var(--accent2)" : "var(--gold)";
+    const pred = r.prediction;
+    const predWin = pred ? (pred.home_win_probability >= 0.5 ? pred.home_team : pred.away_team) : null;
+    const predTeamIsUs = predWin === team;
+    const predProb = pred
+      ? (predTeamIsUs ? pred.home_win_probability : 1 - pred.home_win_probability) * 100
+      : null;
+    return `<div class="rival-row">
+  <a href="/team/${r.team}" class="rival-abbr" style="color:${rc};text-decoration:none">${r.team}</a>
+  <div style="flex:1">
+    <div style="font-size:0.68rem;color:var(--muted)">${rm.name || r.team}</div>
+    ${r.rival_elo ? `<div style="font-size:0.62rem;color:var(--muted)">Elo: ${r.rival_elo}</div>` : ""}
+  </div>
+  <div style="text-align:right">
+    <div class="rival-prob" style="color:${wrColor}">${wrPct}% H2H</div>
+    <div style="font-size:0.6rem;color:var(--muted)">${r.h2h_games} meetings</div>
+    ${predProb ? `<div style="font-size:0.62rem;color:${predTeamIsUs?'var(--accent3)':'var(--accent2)'}">${predProb.toFixed(0)}% next game</div>` : ""}
+  </div>
+</div>`;
+  }).join("") || `<div style="color:var(--muted);font-size:0.8rem;padding:8px">No division data available</div>`;
+
+  // Show content
+  document.getElementById("content").style.display = "block";
+  document.getElementById("loading").style.opacity = "0";
+  setTimeout(() => document.getElementById("loading").style.display = "none", 500);
+}
+
+function renderEloChart(history, tc) {
+  if (!history.length) {
+    document.getElementById("elo-chart").parentElement.innerHTML =
+      `<div style="color:var(--muted);text-align:center;padding:2rem;font-size:0.8rem">No Elo history — retrain the model first</div>`;
+    return;
+  }
+
+  const labels = history.map(h => `S${h.season}W${h.week}`);
+  const values = history.map(h => h.elo);
+  const seasons = [...new Set(history.map(h => h.season))];
+
+  const ctx = document.getElementById("elo-chart").getContext("2d");
+  _chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: `${team} Elo`,
+          data: values,
+          borderColor: tc,
+          backgroundColor: tc + "15",
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          fill: true,
+          tension: 0.3,
+        },
+        {
+          label: "League Average",
+          data: Array(values.length).fill(1500),
+          borderColor: "rgba(255,255,255,0.12)",
+          borderWidth: 1,
+          borderDash: [4,4],
+          pointRadius: 0,
+          fill: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 800 },
+      interaction: {
+        mode: "index",
+        intersect: false,
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: "index",
+          intersect: false,
+          backgroundColor: "rgba(14,20,32,0.95)",
+          borderColor: "rgba(255,255,255,0.1)",
+          borderWidth: 1,
+          titleColor: "rgba(255,255,255,0.7)",
+          bodyColor: "#e8eef8",
+          titleFont: { family: "'JetBrains Mono',monospace", size: 10 },
+          bodyFont: { family: "'JetBrains Mono',monospace", size: 12, weight: "700" },
+          padding: 10,
+          callbacks: {
+            title: (items) => {
+              const h = history[items[0].dataIndex];
+              return `Season ${h.season} · Week ${h.week}`;
+            },
+            label: (item) => {
+              if (item.datasetIndex === 1) return "Avg: 1500";
+              const diff = item.raw - 1500;
+              const sign = diff >= 0 ? "+" : "";
+              return `Elo: ${item.raw.toFixed(0)}  (${sign}${diff.toFixed(0)} vs avg)`;
+            },
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color:"rgba(255,255,255,0.2)", maxTicksLimit:8, font:{size:9} }, grid:{color:"rgba(255,255,255,0.04)"} },
+        y: { ticks: { color:"rgba(255,255,255,0.4)", font:{size:10} }, grid:{color:"rgba(255,255,255,0.05)"} }
+      },
+      onHover: (event, elements, chart) => {
+        if (event.native) event.native.target.style.cursor = "crosshair";
+      },
+    }
+  });
+}
+
+window.addEventListener("DOMContentLoaded", () => setTimeout(init, 100));
+</script>
+</body>
+</html>

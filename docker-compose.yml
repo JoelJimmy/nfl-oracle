@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+
+  # ── NFL Predictor web server ─────────────────────────────────────────────
+  web:
+    build: .
+    ports:
+      - "${PORT:-5000}:5000"
+    environment:
+      - PORT=5000
+      - REDIS_URL=redis://redis:6379/0
+      - ODDS_API_KEY=${ODDS_API_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - WEB_CONCURRENCY=${WEB_CONCURRENCY:-2}
+    volumes:
+      # Persist trained models and logs outside the container
+      - ./app/models:/app/app/models
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── Redis cache ───────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ── One-off train service ─────────────────────────────────────────────────
+  # Run with: docker compose run --rm train
+  train:
+    build: .
+    command: python -m scripts.train
+    volumes:
+      - ./app/models:/app/app/models
+      - ./logs:/app/logs
+    environment:
+      - LOG_LEVEL=INFO
+    profiles:
+      - train   # only runs when explicitly called
+
+volumes:
+  redis_data:

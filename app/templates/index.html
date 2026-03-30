@@ -1,0 +1,1793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFL Oracle — AI Game Predictions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080b10;
+    --surface: #0e1420;
+    --surface2: #161d2e;
+    --border: rgba(255,255,255,0.07);
+    --accent: #00e5ff;
+    --accent2: #ff3b5c;
+    --accent3: #7fff6e;
+    --gold: #ffc940;
+    --text: #e8eef8;
+    --muted: #7a8aa0;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden; }
+  body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(0,229,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.025) 1px,transparent 1px); background-size:60px 60px; pointer-events:none; z-index:0; }
+
+  /* HEADER */
+  header { position:sticky; top:0; z-index:100; background:rgba(8,11,16,0.93); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:0 2rem; }
+  .header-inner { max-width:1400px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; height:64px; }
+  .logo { display:flex; align-items:center; gap:12px; }
+  .logo-icon { width:36px; height:36px; background:linear-gradient(135deg,var(--accent),#0066ff); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .logo-text { font-family:'Bebas Neue',sans-serif; font-size:1.7rem; letter-spacing:2px; line-height:1; }
+  .logo-sub { font-size:0.6rem; color:var(--accent); letter-spacing:3px; font-weight:700; text-transform:uppercase; }
+  .header-right { display:flex; align-items:center; gap:10px; }
+  .badge { padding:4px 12px; border-radius:20px; font-size:0.68rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+  .badge-ml { background:rgba(0,229,255,0.1); color:var(--accent); border:1px solid rgba(0,229,255,0.25); }
+  .badge-live { background:rgba(255,59,92,0.1); color:var(--accent2); border:1px solid rgba(255,59,92,0.25); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
+
+  /* MAIN */
+  .main { max-width:1400px; margin:0 auto; padding:2rem; position:relative; z-index:1; }
+
+  /* STATS BANNER */
+  .stats-banner { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:2rem; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.2rem 1.5rem; position:relative; overflow:hidden; }
+  .stat-card::before { content:''; position:absolute; top:0;left:0;right:0; height:2px; background:linear-gradient(90deg,var(--accent),transparent); }
+  .sc-label { font-size:0.6rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+  .sc-value { font-family:'Bebas Neue',sans-serif; font-size:2rem; color:var(--accent); line-height:1; }
+  .sc-sub { font-size:0.7rem; color:var(--muted); margin-top:4px; }
+
+  /* FILTER BAR */
+  .filter-bar { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.1rem 1.5rem; margin-bottom:2rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .fl { font-size:0.68rem; font-weight:700; letter-spacing:2px; color:var(--muted); text-transform:uppercase; white-space:nowrap; }
+  select { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:8px 14px; border-radius:8px; font-family:'DM Sans',sans-serif; font-size:0.83rem; cursor:pointer; outline:none; transition:border-color 0.2s; min-width:170px; }
+  select:focus { border-color:var(--accent); }
+  select option { background:var(--surface2); }
+  .fdiv { width:1px; height:28px; background:var(--border); }
+  .filter-info { margin-left:auto; font-size:0.72rem; color:var(--muted); font-style:italic; }
+
+  /* SECTION HEADER */
+  .section-header { display:flex; align-items:center; gap:12px; margin-bottom:1.5rem; }
+  .section-title { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:2px; }
+  .section-count { background:var(--surface2); padding:2px 10px; border-radius:20px; font-size:0.72rem; font-weight:700; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+  .data-note { font-size:0.6rem; color:var(--muted); font-family:'JetBrains Mono',monospace; text-align:right; margin-bottom:1rem; opacity:0.55; }
+
+  /* GAMES GRID */
+  #games-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(640px,1fr)); gap:1.5rem; }
+
+  /* GAME CARD */
+  .game-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; overflow:hidden; transition:transform 0.18s,box-shadow 0.18s; }
+  .game-card:hover { transform:translateY(-2px); box-shadow:0 8px 40px rgba(0,0,0,0.5); }
+
+  .gc-header { padding:0.8rem 1.5rem; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); }
+  .gc-meta { font-size:0.62rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+  .gc-week { font-size:0.62rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--accent); font-family:'JetBrains Mono',monospace; }
+
+  /* MATCHUP */
+  .matchup { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:1.2rem 1.5rem; gap:1rem; }
+  .team-side { display:flex; align-items:center; gap:12px; }
+  .team-side.away { flex-direction:row-reverse; text-align:right; }
+  .team-logo { width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.5rem; flex-shrink:0; }
+  .team-abbr { font-family:'Bebas Neue',sans-serif; font-size:1.5rem; letter-spacing:1px; line-height:1; }
+  .team-name { font-size:0.7rem; color:var(--muted); margin-top:2px; line-height:1.3; }
+  .vs-block { font-family:'Bebas Neue',sans-serif; font-size:1rem; color:var(--muted); letter-spacing:2px; text-align:center; padding:8px 10px; background:var(--surface2); border-radius:8px; }
+  .vs-hint { font-size:0.55rem; color:var(--muted); letter-spacing:1px; }
+  .team-side.winner .team-abbr { color:var(--accent3) !important; }
+  .team-side.winner .team-logo { box-shadow:0 0 18px rgba(127,255,110,0.3); }
+
+  /* PREDICTION BAR */
+  .pred-section { padding:0 1.5rem 1rem; border-bottom:1px solid var(--border); }
+  .pred-lbl { font-size:0.58rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:7px; display:flex; justify-content:space-between; }
+  .pred-bar-wrap { position:relative; height:30px; background:var(--surface2); border-radius:6px; overflow:hidden; }
+  .pred-bar-home { position:absolute; left:0;top:0;height:100%; border-radius:6px 0 0 6px; display:flex; align-items:center; padding-left:10px; transition:width 0.9s cubic-bezier(0.4,0,0.2,1); }
+  .pred-bar-away { position:absolute; right:0;top:0;height:100%; border-radius:0 6px 6px 0; display:flex; align-items:center; justify-content:flex-end; padding-right:10px; }
+  .pred-pct { font-family:'JetBrains Mono',monospace; font-size:0.75rem; font-weight:700; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,0.6); }
+  .pred-footer { margin-top:6px; display:flex; align-items:center; gap:6px; font-size:0.7rem; }
+  .conf-dot { display:inline-block; width:7px; height:7px; border-radius:50%; }
+  .conf-label { font-size:0.63rem; letter-spacing:1px; text-transform:uppercase; font-weight:700; }
+  .winner-label { margin-left:4px; font-size:0.73rem; }
+
+  /* STATS GRID */
+  .stats-grid { padding:0.9rem 1.5rem; display:grid; grid-template-columns:1fr auto 1fr; gap:5px 10px; border-bottom:1px solid var(--border); }
+  .sg-left { font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:var(--muted); text-align:right; }
+  .sg-right { font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:var(--muted); text-align:left; }
+  .sg-left.win,.sg-right.win { color:var(--accent3); font-weight:700; }
+  .sg-mid { font-size:0.6rem; text-align:center; color:var(--muted); letter-spacing:0.5px; }
+
+  /* VEGAS */
+  .vegas-row { padding:0.8rem 1.5rem; display:grid; grid-template-columns:auto 1fr 1fr 1fr; align-items:center; gap:0.8rem; }
+  .vl { font-size:0.6rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--gold); white-space:nowrap; }
+  .odds-chip { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:5px 8px; text-align:center; }
+  .oc-label { font-size:0.52rem; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:2px; }
+  .oc-val { font-family:'JetBrains Mono',monospace; font-size:0.82rem; font-weight:700; color:var(--gold); }
+  .oc-val.fav { color:var(--accent2); }
+
+  /* ROSTER */
+  .roster-row { padding:0.7rem 1.5rem; display:flex; align-items:center; gap:7px; flex-wrap:wrap; border-top:1px solid var(--border); }
+  .rl { font-size:0.58rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+  .player-chip { background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:3px 9px; font-size:0.68rem; display:flex; align-items:center; gap:5px; white-space:nowrap; }
+  .pc-pos { font-size:0.58rem; font-weight:700; letter-spacing:1px; color:var(--accent); font-family:'JetBrains Mono',monospace; }
+  .pc-rtg { font-size:0.58rem; color:var(--gold); font-family:'JetBrains Mono',monospace; font-weight:700; }
+
+  /* EMPTY / LOADING / ERROR */
+  .empty { text-align:center; padding:4rem; color:var(--muted); grid-column:1/-1; }
+  .empty-icon { font-size:2.5rem; margin-bottom:1rem; opacity:0.35; }
+  .error-banner { background:rgba(255,59,92,0.1); border:1px solid rgba(255,59,92,0.3); border-radius:10px; padding:1rem 1.5rem; margin-bottom:1.5rem; color:var(--accent2); font-size:0.82rem; display:none; }
+
+  /* LOADING OVERLAY */
+  .loading-overlay { position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem; transition:opacity 0.5s; }
+  .lo-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:4px; color:var(--accent); }
+  .lo-bar { width:280px; height:3px; background:var(--surface2); border-radius:10px; overflow:hidden; position:relative; }
+  .lo-fill { position:absolute; left:-100%; top:0; height:100%; width:60%; background:linear-gradient(90deg,transparent,var(--accent),transparent); animation:sweep 1.2s ease-in-out infinite; }
+  @keyframes sweep { from{left:-100%} to{left:100%} }
+  .lo-status { font-size:0.72rem; color:var(--muted); letter-spacing:2px; font-family:'JetBrains Mono',monospace; }
+
+  /* CUSTOM MATCHUP PANEL */
+  .custom-panel { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.5rem; margin-bottom:2rem; }
+  .cp-title { font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:2px; color:var(--accent); margin-bottom:1rem; }
+  .cp-row { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .cp-label { font-size:0.68rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--muted); }
+  .predict-btn { background:linear-gradient(135deg,var(--accent),#0066ff); border:none; color:#000; font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.85rem; padding:9px 22px; border-radius:8px; cursor:pointer; transition:opacity 0.2s; letter-spacing:0.5px; white-space:nowrap; }
+  .predict-btn:hover { opacity:0.85; }
+  #custom-result { margin-top:1rem; display:none; }
+
+  /* OFF-SEASON BANNER */
+  .offseason-banner { background: linear-gradient(135deg, rgba(255,201,64,0.08), rgba(255,201,64,0.04)); border: 1px solid rgba(255,201,64,0.3); border-radius:12px; padding:1rem 1.5rem; margin-bottom:1.5rem; display:none; align-items:center; gap:14px; }
+  .ob-icon { font-size:1.4rem; flex-shrink:0; }
+  .ob-title { font-family:'Bebas Neue',sans-serif; font-size:1rem; letter-spacing:2px; color:var(--gold); }
+  .ob-body { font-size:0.78rem; color:var(--muted); margin-top:2px; line-height:1.5; }
+
+  /* FOOTER */
+  footer { position:relative; z-index:1; border-top:1px solid var(--border); padding:1.5rem 2rem; margin-top:3rem; text-align:center; font-size:0.7rem; color:var(--muted); line-height:1.8; }
+  .fa { color:var(--accent); font-weight:600; }
+
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  @media(max-width:900px) { .stats-banner{grid-template-columns:repeat(2,1fr)} #games-grid{grid-template-columns:1fr} }
+  @media(max-width:600px) { .main{padding:1rem} .stats-grid{display:none} .stats-banner{grid-template-columns:1fr 1fr} }
+
+  /* TABS */
+  .tabs { display:flex; gap:4px; margin-bottom:1.5rem; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:4px; width:fit-content; }
+  .tab-btn { padding:7px 18px; border-radius:7px; font-size:0.78rem; font-weight:700; letter-spacing:0.5px; cursor:pointer; border:none; background:transparent; color:var(--muted); transition:all 0.15s; }
+  .tab-btn.active { background:var(--surface2); color:var(--text); }
+  .tab-btn:hover:not(.active) { color:var(--text); }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; }
+  /* BEST BETS */
+  .best-bet-card { background:var(--surface); border:1px solid rgba(255,201,64,0.3); border-radius:12px; padding:1rem 1.4rem; display:flex; align-items:center; gap:1.2rem; margin-bottom:0.8rem; flex-wrap:wrap; }
+  .bb-teams { font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:1px; flex:1; min-width:160px; }
+  .bb-pick { font-size:0.78rem; color:var(--gold); font-weight:700; }
+  .bb-conf { font-family:'JetBrains Mono',monospace; font-size:0.82rem; color:var(--accent3); font-weight:700; white-space:nowrap; }
+  .bb-edge { font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:var(--muted); white-space:nowrap; }
+  /* H2H PANEL */
+  .h2h-panel { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:0.9rem 1.2rem; margin-top:0.8rem; }
+  .h2h-title { font-size:0.6rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:0.6rem; }
+  .h2h-bar-wrap { height:8px; background:var(--surface); border-radius:4px; overflow:hidden; display:flex; margin-bottom:0.4rem; }
+  .h2h-bar-home { height:100%; transition:width 0.6s; }
+  .h2h-bar-away { height:100%; }
+  .h2h-labels { display:flex; justify-content:space-between; font-size:0.68rem; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+  /* ACCURACY */
+  .acc-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:0.8rem; margin-bottom:1.5rem; }
+  .acc-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem; text-align:center; position:relative; overflow:hidden; }
+  .acc-card::before { content:''; position:absolute; top:0;left:0;right:0; height:2px; background:linear-gradient(90deg,var(--accent3),transparent); }
+  .acc-val { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; line-height:1; color:var(--accent3); }
+  .acc-lbl { font-size:0.6rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--muted); margin-top:4px; }
+  .acc-sub { font-size:0.65rem; color:var(--muted); margin-top:2px; }
+  .no-data { text-align:center; padding:3rem; color:var(--muted); font-size:0.85rem; opacity:0.6; }
+
+  /* SHARP INDICATOR */
+  .sharp-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 8px; border-radius:6px; font-size:0.65rem; font-weight:700; letter-spacing:0.5px; white-space:nowrap; }
+  .sharp-5 { background:rgba(255,201,64,0.15); color:var(--gold); border:1px solid rgba(255,201,64,0.4); }
+  .sharp-4 { background:rgba(255,201,64,0.1);  color:var(--gold); border:1px solid rgba(255,201,64,0.25); }
+  .sharp-3 { background:rgba(0,229,255,0.08);  color:var(--accent); border:1px solid rgba(0,229,255,0.2); }
+  .sharp-low { background:rgba(255,255,255,0.04); color:var(--muted); border:1px solid var(--border); }
+
+  /* ADJUSTMENT BADGE */
+  .adj-badge { font-size:0.62rem; font-weight:700; padding:2px 7px; border-radius:4px; white-space:nowrap; }
+  .adj-pos { background:rgba(127,255,110,0.1); color:var(--accent3); border:1px solid rgba(127,255,110,0.2); }
+  .adj-neg { background:rgba(255,59,92,0.1);   color:var(--accent2); border:1px solid rgba(255,59,92,0.2); }
+
+  /* WHAT-IF SIMULATOR */
+  .simulator { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:1rem 1.2rem; margin-top:0.8rem; }
+  .sim-title { font-size:0.6rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--accent); margin-bottom:0.8rem; }
+  .sim-section { font-size:0.58rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin:0.6rem 0 0.4rem; padding-bottom:3px; border-bottom:1px solid var(--border); }
+  .sim-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.6rem 1.2rem; margin-bottom:0.4rem; }
+  .sim-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.6rem 0.8rem; margin-bottom:0.4rem; }
+  .sim-field { display:flex; flex-direction:column; gap:3px; }
+  .sim-label { font-size:0.62rem; color:var(--muted); font-weight:600; letter-spacing:0.5px; }
+  .sim-label span { color:var(--text); font-family:'JetBrains Mono',monospace; }
+  .sim-range { width:100%; accent-color:var(--accent); cursor:pointer; height:3px; }
+  .sim-toggle { display:flex; align-items:center; gap:7px; cursor:pointer; padding:4px 0; }
+  .sim-toggle input[type=checkbox] { width:14px; height:14px; accent-color:var(--accent2); cursor:pointer; flex-shrink:0; }
+  .sim-toggle-label { font-size:0.68rem; color:var(--muted); }
+  .sim-weather-row { display:grid; grid-template-columns:1fr 1fr; gap:0.6rem 1.2rem; margin-bottom:0.4rem; }
+  .sim-btn { background:linear-gradient(135deg,var(--accent),#0066ff); border:none; color:#000; font-family:'DM Sans',sans-serif; font-weight:700; font-size:0.78rem; padding:7px 16px; border-radius:7px; cursor:pointer; width:100%; margin-top:0.6rem; }
+  .sim-btn:hover { opacity:0.85; }
+  .sim-result { margin-top:0.8rem; padding:0.8rem 1rem; background:var(--surface); border-radius:8px; font-size:0.78rem; display:none; }
+  .sim-factors { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+  .sim-factor-chip { font-size:0.62rem; padding:2px 8px; border-radius:4px; background:rgba(0,229,255,0.08); color:var(--accent); border:1px solid rgba(0,229,255,0.2); }
+
+  /* LIVE SCORES */
+  .live-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1rem 1.4rem; margin-bottom:0.8rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .live-score { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:1px; line-height:1; }
+  .live-clock { font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:var(--accent2); font-weight:700; animation:pulse 1.5s infinite; }
+  .live-wp-bar { flex:1; min-width:160px; height:10px; background:var(--surface2); border-radius:5px; overflow:hidden; display:flex; }
+  .live-wp-home { height:100%; transition:width 1s ease; }
+  .live-wp-away { height:100%; }
+  .live-dot { width:8px; height:8px; border-radius:50%; background:var(--accent2); animation:pulse 1s infinite; display:inline-block; margin-right:4px; }
+  .pre-game-badge { font-size:0.65rem; color:var(--muted); font-style:italic; }
+  .final-badge { font-size:0.65rem; font-weight:700; color:var(--accent3); letter-spacing:1px; text-transform:uppercase; }
+  /* LIGHT MODE */
+  body.light { --bg:#f0f4f8; --surface:#ffffff; --surface2:#e8edf5; --surface3:#dde4ee; --border:rgba(0,0,0,0.1); --text:#1a202c; --muted:#64748b; }
+  body.light header { background:rgba(240,244,248,0.95); }
+  body.light .gc-card { box-shadow:0 2px 12px rgba(0,0,0,0.08); }
+
+  /* SKELETON */
+  .skeleton { background:linear-gradient(90deg,var(--surface2) 25%,var(--surface3) 50%,var(--surface2) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:6px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .skeleton-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.5rem; margin-bottom:1.5rem; }
+  .skel-line { height:12px; margin-bottom:8px; }
+  .skel-line.wide{width:80%} .skel-line.medium{width:55%} .skel-line.narrow{width:35%}
+  .skel-bar { height:28px; border-radius:6px; margin:12px 0; }
+
+  /* PICK TRACKER */
+  .pick-row { display:flex; gap:6px; align-items:center; padding:4px 1.5rem 0; flex-wrap:wrap; }
+  .pick-btn { border:none; background:none; cursor:pointer; padding:4px 10px; border-radius:6px; font-size:0.65rem; font-weight:700; letter-spacing:0.5px; transition:all 0.15s; white-space:nowrap; }
+  .pick-home { background:rgba(0,229,255,0.08); color:var(--accent); border:1px solid rgba(0,229,255,0.2); }
+  .pick-away { background:rgba(255,59,92,0.08); color:var(--accent2); border:1px solid rgba(255,59,92,0.2); }
+  .pick-selected { opacity:1 !important; filter:brightness(1.3); outline:2px solid currentColor; outline-offset:1px; }
+  .pick-unselected { opacity:0.35; }
+  .pick-label { font-size:0.6rem; color:var(--muted); letter-spacing:0.5px; }
+  .picks-summary { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:8px 14px; font-size:0.75rem; display:inline-flex; gap:12px; align-items:center; margin-bottom:1rem; flex-wrap:wrap; }
+
+  /* PUSH NOTIFICATION BELL */
+  .notify-btn { background:none; border:1px solid var(--border); color:var(--muted); padding:5px 10px; border-radius:7px; cursor:pointer; font-size:0.75rem; transition:all 0.2s; white-space:nowrap; }
+  .notify-btn:hover { color:var(--accent); border-color:var(--accent); }
+  .notify-btn.subscribed { color:var(--accent3); border-color:rgba(127,255,110,0.4); background:rgba(127,255,110,0.06); }
+
+  /* TEAM FILTER STRIP */
+  .team-filter-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem; align-items:center; }
+  .team-filter-chip { padding:4px 10px; border-radius:20px; font-size:0.65rem; font-weight:700; letter-spacing:0.5px; cursor:pointer; border:1px solid var(--border); background:none; color:var(--muted); transition:all 0.15s; font-family:'DM Sans',sans-serif; }
+  .team-filter-chip.active { background:var(--accent); color:#000; border-color:var(--accent); }
+  .team-filter-chip:hover:not(.active) { border-color:var(--accent); color:var(--accent); }
+
+  /* SUBSCRIBE */
+  .subscribe-strip { background:var(--surface); border:1px solid rgba(0,229,255,0.15); border-radius:12px; padding:1rem 1.4rem; margin-bottom:1.5rem; display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .sub-title { font-size:0.82rem; font-weight:700; margin-bottom:2px; }
+  .sub-desc { font-size:0.68rem; color:var(--muted); }
+  .sub-form { display:flex; gap:8px; flex-wrap:wrap; }
+  .sub-input { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:7px 12px; border-radius:7px; font-size:0.78rem; font-family:'DM Sans',sans-serif; outline:none; min-width:200px; }
+  .sub-input:focus { border-color:var(--accent); }
+  .sub-btn { background:var(--accent); color:#000; border:none; padding:7px 16px; border-radius:7px; font-weight:700; font-size:0.78rem; cursor:pointer; white-space:nowrap; }
+  .sub-btn:hover { opacity:0.85; }
+  .sub-msg { font-size:0.72rem; padding:4px 10px; border-radius:6px; }
+
+  /* DIVISION BADGE */
+  .div-game-chip { font-size:0.58rem; font-weight:700; letter-spacing:1px; padding:2px 7px; border-radius:4px; background:rgba(255,201,64,0.1); color:var(--gold); border:1px solid rgba(255,201,64,0.25); text-transform:uppercase; }
+
+  /* BYE WEEK */
+  .bye-section { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1rem 1.4rem; margin-bottom:1.5rem; display:none; }
+  .bye-title { font-size:0.6rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:0.8rem; display:flex; align-items:center; gap:8px; }
+  .bye-title::after { content:''; flex:1; height:1px; background:var(--border); }
+  .bye-teams-grid { display:flex; flex-wrap:wrap; gap:8px; }
+  .bye-team-chip { display:flex; align-items:center; gap:6px; padding:6px 12px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; text-decoration:none; transition:border-color 0.15s; cursor:pointer; }
+  .bye-team-chip:hover { border-color:var(--accent); }
+  .bye-team-emoji { font-size:1rem; }
+  .bye-team-abbr { font-family:'Bebas Neue',sans-serif; font-size:0.95rem; letter-spacing:1px; }
+  .bye-team-name { font-size:0.62rem; color:var(--muted); }
+
+  /* MOBILE */
+  @media(max-width:600px) {
+    .main { padding:0.75rem; }
+    /* Compact matchup on small screens */
+    .matchup { padding:0.9rem 1rem; gap:0.5rem; }
+    .team-logo { width:38px; height:38px; font-size:1.1rem; }
+    .team-abbr { font-size:1.15rem; }
+    .team-name { font-size:0.6rem; }
+    .vs-block { font-size:0.75rem; min-width:36px; }
+    /* Hide stats table on mobile — show key numbers only */
+    .gc-stats { display:none; }
+    /* Stack odds pills vertically */
+    .gc-odds { flex-direction:column; gap:4px; }
+    .odds-pill { flex:none; }
+    /* Simulator single column */
+    .simulator .sim-grid, .simulator .sim-grid-3 { grid-template-columns:1fr; }
+    /* Subscribe full width */
+    .sub-input { min-width:0; width:100%; }
+    .subscribe-strip { flex-direction:column; align-items:flex-start; }
+    /* Tabs scroll horizontally if needed */
+    .tabs { overflow-x:auto; -webkit-overflow-scrolling:touch; width:100%; }
+    /* Stack banner vertically */
+    .stats-banner { grid-template-columns:1fr 1fr; }
+    /* Game grid single col */
+    #games-grid { grid-template-columns:1fr !important; }
+    /* Roster row wraps */
+    .roster-row { flex-wrap:wrap; }
+    /* Prediction bar labels */
+    .pred-bar-home span, .pred-bar-away span { font-size:0.72rem; }
+    /* Pick row */
+    .pick-row { padding:4px 1rem 0; }
+    /* Header compact */
+    .header-inner { padding:0 0.75rem; }
+    .logo-text { font-size:1.4rem; }
+  }
+  @media(max-width:400px) {
+    .team-abbr { font-size:1rem; }
+    .team-logo { width:32px; height:32px; font-size:1rem; }
+    .tabs { gap:2px; padding:3px; }
+    .tab-btn { padding:5px 10px; font-size:0.7rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loading">
+  <div class="lo-title">NFL ORACLE</div>
+  <div style="color:var(--muted);font-size:0.78rem;letter-spacing:3px;font-family:'JetBrains Mono',monospace">INITIALIZING</div>
+  <div class="lo-bar"><div class="lo-fill"></div></div>
+  <div class="lo-status" id="lo-status">Connecting to server...</div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">🏈</div>
+      <div>
+        <div class="logo-text">NFL Oracle</div>
+        
+      </div>
+    </div>
+    <div class="header-right">
+      <a href="/power-rankings" style="color:var(--muted);font-size:0.78rem;font-weight:600;text-decoration:none;letter-spacing:0.5px;padding:6px 14px;border:1px solid var(--border);border-radius:8px;transition:color 0.2s,border-color 0.2s" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">⚡ Power Rankings</a>
+      <div style="position:relative">
+        <input id="team-jump" placeholder="Go to team..." autocomplete="off"
+          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);
+                 padding:5px 10px;border-radius:7px;font-size:0.75rem;width:120px;outline:none;
+                 font-family:'DM Sans',sans-serif"
+          oninput="showTeamJump(this.value)" onblur="setTimeout(()=>hideTeamJump(),200)"
+          onfocus="showTeamJump(this.value)">
+        <div id="team-jump-list" style="display:none;position:absolute;top:34px;right:0;
+          background:var(--surface);border:1px solid var(--border);border-radius:8px;
+          z-index:200;min-width:160px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.4)">
+        </div>
+      </div>
+      <span class="badge badge-ml">Gradient Boosting</span>
+      <button id="notify-btn" class="notify-btn" onclick="toggleNotifications()" title="Get push notifications for game alerts">🔔 Alerts</button>
+      <button id="theme-toggle" onclick="toggleTheme()"
+        style="background:none;border:1px solid var(--border);color:var(--muted);padding:5px 10px;border-radius:7px;cursor:pointer;font-size:0.75rem;transition:all 0.2s"
+        title="Toggle dark/light mode">🌙</button>
+      <span class="badge badge-live" id="season-badge">NFL 2026</span>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- Error Banner -->
+  <div class="error-banner" id="error-banner"></div>
+
+  <!-- Off-Season Banner -->
+  <div class="offseason-banner" id="offseason-banner">
+    <div class="ob-icon">&#x1F3D5;</div>
+    <div>
+      <div class="ob-title">Off-Season Mode &mdash; Week 1 Preview</div>
+      <div class="ob-body" id="ob-body">The NFL season hasn&#39;t started yet. Predictions below are based on last season&#39;s team profiles and projected Week 1 matchups. Odds are estimated &mdash; live Vegas lines will appear once the season begins.</div>
+    </div>
+  </div>
+
+  <!-- Stats Banner -->
+  <div class="stats-banner">
+    <div class="stat-card">
+      <div class="sc-label">Model Accuracy</div>
+      <div class="sc-value" id="sc-acc">—</div>
+      <div class="sc-sub">5-fold cross-validation</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Training Samples</div>
+      <div class="sc-value" id="sc-samples">—</div>
+      <div class="sc-sub">games across 4 seasons</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Feature Count</div>
+      <div class="sc-value" id="sc-feats">25</div>
+      <div class="sc-sub">rolling 5-game averages</div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-label">Upcoming Games</div>
+      <div class="sc-value" id="sc-games">—</div>
+      <div class="sc-sub" id="sc-week">Loading schedule...</div>
+    </div>
+  </div>
+
+  <!-- Custom Matchup -->
+  <div class="custom-panel">
+    <div class="cp-title">⚡ Custom Matchup Predictor</div>
+    <div class="cp-row">
+      <span class="cp-label">Home</span>
+      <select id="cp-home"><option value="">Select team...</option></select>
+      <span class="cp-label">vs</span>
+      <select id="cp-away"><option value="">Select team...</option></select>
+      <button class="predict-btn" onclick="runCustomPrediction()">Predict →</button>
+    </div>
+    <div id="custom-result"></div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <span class="fl">Team</span>
+    <select id="f-team" onchange="applyFilters()"><option value="ALL">All Teams</option></select>
+    <div class="fdiv"></div>
+    <span class="fl">Conference</span>
+    <select id="f-conf" onchange="applyFilters()">
+      <option value="ALL">All</option>
+      <option value="AFC">AFC</option>
+      <option value="NFC">NFC</option>
+    </select>
+    <div class="fdiv"></div>
+    <span class="fl">Confidence</span>
+    <select id="f-conf2" onchange="applyFilters()">
+      <option value="ALL">All</option>
+      <option value="high">High (&ge;70%)</option>
+      <option value="moderate">Moderate</option>
+      <option value="low">Toss-ups</option>
+    </select>
+    <span class="filter-info" id="filter-info">Loading...</span>
+  </div>
+
+  <!-- Bye week section (hidden off-season, shown during regular season) -->
+  <div class="bye-section" id="bye-section">
+    <div class="bye-title">🛋️ On Bye This Week</div>
+    <div class="bye-teams-grid" id="bye-teams-grid"></div>
+  </div>
+
+  <!-- Subscribe strip -->
+  <div class="subscribe-strip">
+    <div style="flex:1;min-width:200px">
+      <div class="sub-title">📬 Weekly Best Bets</div>
+      <div class="sub-desc">Get top picks emailed every Tuesday morning, free.</div>
+    </div>
+    <div class="sub-form">
+      <input class="sub-input" type="email" id="sub-email" placeholder="your@email.com">
+      <button class="sub-btn" onclick="submitSubscribe()">Subscribe</button>
+      <span class="sub-msg" id="sub-msg" style="display:none"></span>
+    </div>
+  </div>
+
+  <!-- Picks summary -->
+  <div id="picks-summary" style="display:none" class="picks-summary">
+    <span>🎯 Your picks this week:</span>
+    <span id="picks-record" style="font-weight:700;color:var(--accent3)">0-0</span>
+    <span style="color:var(--muted)">·</span>
+    <span>Model: <span id="model-record" style="font-weight:700;color:var(--accent)">—</span></span>
+    <button onclick="clearPicks()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.65rem;text-decoration:underline">Clear picks</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('predictions')">🏈 Predictions</button>
+    <button class="tab-btn" onclick="switchTab('bestbets')">⭐ Best Bets</button>
+    <button class="tab-btn" onclick="switchTab('live')">🔴 Live</button>
+    <button class="tab-btn" onclick="switchTab('accuracy')">📊 Accuracy</button>
+  </div>
+
+  <!-- Predictions Tab -->
+  <div class="tab-pane active" id="tab-predictions">
+    <div class="section-header">
+      <div class="section-title">Upcoming Predictions</div>
+      <div class="section-count" id="games-count">—</div>
+    </div>
+    <div class="data-note" id="data-note">Data: nfl_data_py · Vegas: FanDuel · ML: scikit-learn GradientBoostingClassifier</div>
+    <div id="games-grid">
+      <div class="skeleton-card"><div class="skel-line wide skeleton"></div><div class="skel-bar skeleton"></div><div class="skel-line medium skeleton"></div><div class="skel-line narrow skeleton"></div></div>
+      <div class="skeleton-card"><div class="skel-line wide skeleton"></div><div class="skel-bar skeleton"></div><div class="skel-line medium skeleton"></div><div class="skel-line narrow skeleton"></div></div>
+      <div class="skeleton-card"><div class="skel-line wide skeleton"></div><div class="skel-bar skeleton"></div><div class="skel-line medium skeleton"></div><div class="skel-line narrow skeleton"></div></div>
+    </div>
+  </div>
+
+  <!-- Best Bets Tab -->
+  <div class="tab-pane" id="tab-bestbets">
+    <div class="section-header">
+      <div class="section-title">Best Bets</div>
+      <div class="section-count" id="bb-count">—</div>
+    </div>
+    <p style="font-size:0.72rem;color:var(--muted);margin-bottom:1.2rem">High-confidence picks where ML and Vegas agree most. Edge = ML probability minus Vegas implied probability.</p>
+    <div id="best-bets-list"><div class="no-data">Loading...</div></div>
+  </div>
+
+  <!-- Live Tab -->
+  <div class="tab-pane" id="tab-live">
+    <div class="section-header">
+      <div class="section-title">Live Scores</div>
+      <div id="live-update-time" style="font-size:0.65rem;color:var(--muted);font-family:'JetBrains Mono',monospace"></div>
+    </div>
+    <p style="font-size:0.72rem;color:var(--muted);margin-bottom:1.2rem">Live win probabilities update every 30 seconds. Probability blends pre-game model prediction with current score and time remaining.</p>
+    <div id="live-games-list"><div class="no-data">Loading live scores...</div></div>
+  </div>
+
+  <!-- Accuracy Tab -->
+  <div class="tab-pane" id="tab-accuracy">
+    <div class="section-header"><div class="section-title">Model Accuracy</div></div>
+    <div id="accuracy-content"><div class="no-data">Loading...</div></div>
+  </div>
+
+</main>
+
+<footer>
+  <span class="fa">NFL Oracle</span> · Gradient Boosting Classifier via <span class="fa">scikit-learn</span> ·
+  Play-by-play data from <span class="fa">nfl_data_py</span> (nflverse) ·
+  Vegas odds via <span class="fa">FanDuel / The Odds API</span> ·
+  Rolling 8-game feature windows · Player roster adjustments supported<br>
+  <span style="opacity:0.6;margin-top:4px;display:block">
+    <a href="/about" style="color:var(--muted)">How It Works</a> ·
+    <a href="/privacy" style="color:var(--muted)">Privacy Policy</a> ·
+    <a href="/terms" style="color:var(--muted)">Terms of Service</a>
+  </span>
+  <span style="opacity:0.4;margin-top:4px;display:block">For entertainment only. Please gamble responsibly.</span>
+</footer>
+
+<script>
+// ── Team metadata ─────────────────────────────────────────────────────────
+const TEAM_META = {
+  ARI:{name:"Arizona Cardinals",  conf:"NFC",div:"NFC West",  color:"#97233F",accent:"#FFB612",emoji:"🔴"},
+  ATL:{name:"Atlanta Falcons",    conf:"NFC",div:"NFC South", color:"#A71930",accent:"#A5ACAF",emoji:"🔴"},
+  BAL:{name:"Baltimore Ravens",   conf:"AFC",div:"AFC North", color:"#9E7C0C",accent:"#9E7C0C",emoji:"🟣"},
+  BUF:{name:"Buffalo Bills",      conf:"AFC",div:"AFC East",  color:"#C60C30",accent:"#00338D",emoji:"🔵"},
+  CAR:{name:"Carolina Panthers",  conf:"NFC",div:"NFC South", color:"#0085CA",accent:"#0085CA",emoji:"🔵"},
+  CHI:{name:"Chicago Bears",      conf:"NFC",div:"NFC North", color:"#C83803",accent:"#C83803",emoji:"🟠"},
+  CIN:{name:"Cincinnati Bengals", conf:"AFC",div:"AFC North", color:"#FB4F14",accent:"#FB4F14",emoji:"🟠"},
+  CLE:{name:"Cleveland Browns",   conf:"AFC",div:"AFC North", color:"#FF3C00",accent:"#FF3C00",emoji:"🟠"},
+  DAL:{name:"Dallas Cowboys",     conf:"NFC",div:"NFC East",  color:"#869397",accent:"#869397",emoji:"🔵"},
+  DEN:{name:"Denver Broncos",     conf:"AFC",div:"AFC West",  color:"#FB4F14",accent:"#FB4F14",emoji:"🟠"},
+  DET:{name:"Detroit Lions",      conf:"NFC",div:"NFC North", color:"#0076B6",accent:"#0076B6",emoji:"🔵"},
+  GB: {name:"Green Bay Packers",  conf:"NFC",div:"NFC North", color:"#FFB612",accent:"#FFB612",emoji:"🟡"},
+  HOU:{name:"Houston Texans",     conf:"AFC",div:"AFC South", color:"#A71930",accent:"#A71930",emoji:"🔵"},
+  IND:{name:"Indianapolis Colts", conf:"AFC",div:"AFC South", color:"#A2AAAD",accent:"#A2AAAD",emoji:"🔵"},
+  JAX:{name:"Jacksonville Jaguars",conf:"AFC",div:"AFC South",color:"#9F792C",accent:"#9F792C",emoji:"🟡"},
+  KC: {name:"Kansas City Chiefs", conf:"AFC",div:"AFC West",  color:"#E31837",accent:"#FFB81C",emoji:"🔴"},
+  LV: {name:"Las Vegas Raiders",  conf:"AFC",div:"AFC West",  color:"#A5ACAF",accent:"#A5ACAF",emoji:"⚫"},
+  LAC:{name:"Los Angeles Chargers",conf:"AFC",div:"AFC West", color:"#0080C6",accent:"#FFC20E",emoji:"🔵"},
+  LAR:{name:"Los Angeles Rams",   conf:"NFC",div:"NFC West",  color:"#FFA300",accent:"#FFA300",emoji:"🔵"},
+  LA: {name:"Los Angeles Rams",   conf:"NFC",div:"NFC West",  color:"#FFA300",accent:"#FFA300",emoji:"🔵"},
+  MIA:{name:"Miami Dolphins",     conf:"AFC",div:"AFC East",  color:"#008E97",accent:"#FC4C02",emoji:"🟠"},
+  MIN:{name:"Minnesota Vikings",  conf:"NFC",div:"NFC North", color:"#FFC62F",accent:"#FFC62F",emoji:"🟣"},
+  NE: {name:"New England Patriots",conf:"AFC",div:"AFC East", color:"#C60C30",accent:"#C60C30",emoji:"🔵"},
+  NO: {name:"New Orleans Saints", conf:"NFC",div:"NFC South", color:"#D3BC8D",accent:"#D3BC8D",emoji:"⚫"},
+  NYG:{name:"New York Giants",    conf:"NFC",div:"NFC East",  color:"#A71930",accent:"#A71930",emoji:"🔵"},
+  NYJ:{name:"New York Jets",      conf:"AFC",div:"AFC East",  color:"#125740",accent:"#FFFFFF",emoji:"🟢"},
+  PHI:{name:"Philadelphia Eagles",conf:"NFC",div:"NFC East",  color:"#A5ACAF",accent:"#A5ACAF",emoji:"🟢"},
+  PIT:{name:"Pittsburgh Steelers",conf:"AFC",div:"AFC North", color:"#FFB612",accent:"#FFB612",emoji:"🟡"},
+  SF: {name:"San Francisco 49ers",conf:"NFC",div:"NFC West",  color:"#AA0000",accent:"#B3995D",emoji:"🔴"},
+  SEA:{name:"Seattle Seahawks",   conf:"NFC",div:"NFC West",  color:"#69BE28",accent:"#69BE28",emoji:"🟢"},
+  TB: {name:"Tampa Bay Buccaneers",conf:"NFC",div:"NFC South",color:"#D50A0A",accent:"#FF7900",emoji:"🔴"},
+  TEN:{name:"Tennessee Titans",   conf:"AFC",div:"AFC South", color:"#4B92DB",accent:"#4B92DB",emoji:"🔵"},
+  WAS:{name:"Washington Commanders",conf:"NFC",div:"NFC East",color:"#FFB612",accent:"#FFB612",emoji:"🟡"},
+};
+
+// KEY_PLAYERS is populated dynamically from /api/rosters on page load
+let KEY_PLAYERS = {};
+
+// ── Color contrast helper ─────────────────────────────────────────────────────
+function _luminance(hex) {
+  const c = hex.replace("#","");
+  const r = parseInt(c.slice(0,2),16)/255, g = parseInt(c.slice(2,4),16)/255, b = parseInt(c.slice(4,6),16)/255;
+  const tl = v => v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4);
+  return 0.2126*tl(r)+0.7152*tl(g)+0.0722*tl(b);
+}
+function readable(hex, accent) {
+  if (!hex || hex.length < 6) return "var(--accent)";
+  try {
+    if (_luminance(hex) >= 0.06) return hex;
+    if (accent) return accent;
+    const c = hex.replace("#","");
+    const blend = v => Math.round(parseInt(v,16)+(255-parseInt(v,16))*0.55).toString(16).padStart(2,"0");
+    return "#"+blend(c.slice(0,2))+blend(c.slice(2,4))+blend(c.slice(4,6));
+  } catch(e) { return "var(--accent)"; }
+}
+
+// ── State ─────────────────────────────────────────────────────────────────
+let allGames = [];
+let modelMeta = {};
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function fmtML(ml) {
+  if (ml == null) return "N/A";
+  return ml > 0 ? "+" + ml : "" + ml;
+}
+function confStyle(conf) {
+  if (conf === "high")     return { color: "var(--accent3)", label: "HIGH" };
+  if (conf === "moderate") return { color: "var(--accent)",  label: "MODERATE" };
+  return                          { color: "var(--gold)",    label: "LOW" };
+}
+function sgRow(hVal, aVal, label, lowerBetter=false) {
+  const h = parseFloat(hVal)||0, a = parseFloat(aVal)||0;
+  const hW = lowerBetter ? h <= a : h >= a;
+  const aW = lowerBetter ? a <= h : a >= h;
+  return `<div class="sg-left${hW?' win':''}">${h.toFixed(2)}</div>`+
+         `<div class="sg-mid">${label}</div>`+
+         `<div class="sg-right${aW?' win':''}">${a.toFixed(2)}</div>`;
+}
+function showError(msg) {
+  const el = document.getElementById("error-banner");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+// ── Card builder ──────────────────────────────────────────────────────────
+function buildCard(g) {
+  const hm = TEAM_META[g.home_team] || { name: g.home_team, color:"#334", emoji:"🏈", conf:"" };
+  const am = TEAM_META[g.away_team] || { name: g.away_team, color:"#334", emoji:"🏈", conf:"" };
+  const hC = readable(hm.color, hm.accent);
+  const aC = readable(am.color, am.accent);
+  const hp = g.home_win_probability ?? 0.5;
+  const ap = g.away_win_probability ?? 0.5;
+  const hPct = (hp * 100).toFixed(1);
+  const aPct = (ap * 100).toFixed(1);
+  const predHome = hp >= 0.5;
+  const winner = predHome ? g.home_team : g.away_team;
+  const conf = confStyle(g.confidence || "low");
+  const hSide = "team-side" + (predHome ? " winner" : "");
+  const aSide = "team-side away" + (!predHome ? " winner" : "");
+
+  const hp_ = g.home_profile || {};
+  const ap_ = g.away_profile || {};
+
+  const spreadStr = g.spread != null
+    ? (g.spread <= 0 ? g.home_team + " " + g.spread.toFixed(1) : g.away_team + " " + (-g.spread).toFixed(1))
+    : "N/A";
+
+  // Normalize live roster format {name,position,jersey} to what the chip renderer expects
+  const normPlayers = (arr) => (arr||[]).map(p => ({
+    name: p.name,
+    pos: p.position || p.pos || "",
+    jersey: p.jersey || "",
+  }));
+  const players = [...normPlayers(KEY_PLAYERS[g.home_team]), ...normPlayers(KEY_PLAYERS[g.away_team])].slice(0,4);
+
+  return `<div class="game-card"
+    data-home="${g.home_team}"
+    data-away="${g.away_team}"
+    data-confh="${hm.conf}"
+    data-confa="${am.conf}"
+    data-confidence="${g.confidence||'low'}">
+
+  <div class="gc-header">
+    <span class="gc-meta">
+      ${g.season||"2026"} NFL Regular Season${g.mode==="offseason" ? " · PROJECTED" : g.mode==="scheduled" ? " · SCHEDULED" : ""}
+      ${g.is_division_game ? ' <span class="div-game-chip">Division</span>' : ""}
+    </span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="sharp-badge-${g.home_team}-${g.away_team}"></span>
+      <span class="gc-week">Week ${g.week||"—"}${g.mode==="offseason" ? " Preview" : ""}</span>
+    </div>
+  </div>
+
+  <div class="matchup">
+    <div class="${hSide}">
+      <a href="/team/${g.home_team}" style="text-decoration:none;display:flex;align-items:center;gap:12px" title="View ${hm.name} team page">
+        <div class="team-logo" style="background:${hC}22;border:2px solid ${hC}55;transition:transform 0.15s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${hm.emoji}</div>
+        <div>
+          <div class="team-abbr" style="color:${hC}">${g.home_team}</div>
+          <div class="team-name">${hm.name}</div>
+        </div>
+      </a>
+    </div>
+    <div class="vs-block"><div class="vs-hint">HOME</div>VS<div class="vs-hint">AWAY</div></div>
+    <div class="${aSide}">
+      <a href="/team/${g.away_team}" style="text-decoration:none;display:flex;align-items:center;gap:12px" title="View ${am.name} team page">
+        <div>
+          <div class="team-abbr" style="color:${aC}">${g.away_team}</div>
+          <div class="team-name">${am.name}</div>
+        </div>
+        <div class="team-logo" style="background:${aC}22;border:2px solid ${aC}55;transition:transform 0.15s" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${am.emoji}</div>
+      </a>
+    </div>
+  </div>
+
+  <div class="pred-section">
+    <div class="pred-lbl"><span>HOME WIN PROBABILITY</span><span>ML PREDICTION</span></div>
+    <div class="pred-bar-wrap">
+      <div class="pred-bar-home" style="width:${hPct}%;background:linear-gradient(90deg,${hC},${hC}cc)">
+        <span class="pred-pct">${hPct}%</span>
+      </div>
+      <div class="pred-bar-away" style="width:${aPct}%;background:linear-gradient(90deg,${aC}cc,${aC})">
+        <span class="pred-pct">${aPct}%</span>
+      </div>
+    </div>
+    <div class="pred-footer">
+      <span class="conf-dot" style="background:${conf.color}"></span>
+      <span class="conf-label" style="color:${conf.color}">${conf.label}</span>
+      <span style="color:var(--muted)">&middot;</span>
+      <span class="winner-label">Winner: <strong style="color:${conf.color}">${winner}</strong></span>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    ${sgRow(hp_.roll_offensive_epa, ap_.roll_offensive_epa, "Off EPA/play")}
+    ${sgRow(hp_.roll_defensive_epa_allowed, ap_.roll_defensive_epa_allowed, "Def EPA allow.", true)}
+    ${sgRow(hp_.roll_points_scored, ap_.roll_points_scored, "Pts Scored")}
+    ${sgRow(hp_.roll_points_allowed, ap_.roll_points_allowed, "Pts Allowed", true)}
+    ${sgRow(hp_.roll_pass_epa, ap_.roll_pass_epa, "Pass EPA")}
+    ${sgRow(hp_.roll_rush_epa, ap_.roll_rush_epa, "Rush EPA")}
+  </div>
+
+  <div class="vegas-row">
+    <span class="vl">📊 FanDuel</span>
+    <div class="odds-chip"><div class="oc-label">Spread</div><div class="oc-val">${spreadStr}</div></div>
+    <div class="odds-chip"><div class="oc-label">Home ML</div><div class="oc-val ${g.home_moneyline!=null&&g.home_moneyline<0?'fav':''}">${fmtML(g.home_moneyline)}</div></div>
+    <div class="odds-chip"><div class="oc-label">O/U Total</div><div class="oc-val">${g.total != null ? g.total : "N/A"}</div></div>
+  </div>
+
+  <div class="roster-row">
+    <span class="rl">Key Players</span>
+    ${players.map(p=>`<div class="player-chip"><span class="pc-pos">${p.pos||p.position}</span><span>${p.name}</span>${p.jersey?`<span class="pc-rtg">#${p.jersey}</span>`:""}</div>`).join("")}
+  </div>
+  <div class="pick-row">
+    <span class="pick-label">Your pick:</span>
+    <button class="pick-btn pick-home" id="pick-home-${g.home_team}-${g.away_team}"
+      onclick="setPick('${g.home_team}','${g.away_team}','${g.home_team}')">
+      ${g.home_team}
+    </button>
+    <button class="pick-btn pick-away" id="pick-away-${g.home_team}-${g.away_team}"
+      onclick="setPick('${g.home_team}','${g.away_team}','${g.away_team}')">
+      ${g.away_team}
+    </button>
+
+  </div>
+  <div style="padding:0 1.5rem 1rem" id="h2h-${g.home_team}-${g.away_team}">
+    <div class="h2h-panel" style="display:none">
+      <div class="h2h-title">Head-to-Head History</div>
+      <div class="h2h-bar-wrap">
+        <div class="h2h-bar-home" style="width:50%;background:${hC}"></div>
+        <div class="h2h-bar-away" style="width:50%;background:${aC}"></div>
+      </div>
+      <div class="h2h-labels">
+        <span id="h2h-home-label-${g.home_team}-${g.away_team}">— wins</span>
+        <span id="h2h-games-${g.home_team}-${g.away_team}" style="color:var(--muted)">Loading...</span>
+        <span id="h2h-away-label-${g.home_team}-${g.away_team}">— wins</span>
+      </div>
+    </div>
+    <button onclick="loadH2H('${g.home_team}','${g.away_team}')"
+      style="margin-top:6px;background:none;border:1px solid var(--border);color:var(--muted);font-size:0.65rem;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:6px;cursor:pointer;text-transform:uppercase;transition:all 0.15s"
+      id="h2h-btn-${g.home_team}-${g.away_team}"
+      onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+      H2H History
+    </button>
+  </div>
+
+  <!-- Roster adjustment explanation -->
+  <div id="adj-${g.home_team}-${g.away_team}" style="padding:0 1.5rem 0.5rem;display:flex;gap:6px;flex-wrap:wrap"></div>
+
+  <!-- What-if simulator -->
+  <div style="padding:0 1.5rem 1rem">
+    <button onclick="toggleSimulator('${g.home_team}','${g.away_team}')"
+      id="sim-toggle-btn-${g.home_team}-${g.away_team}"
+      style="background:none;border:1px solid var(--border);color:var(--muted);font-size:0.65rem;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:6px;cursor:pointer;text-transform:uppercase;transition:all 0.15s;margin-left:8px"
+      onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+      ⚙ What-If
+    </button>
+    <div class="simulator" id="sim-${g.home_team}-${g.away_team}" style="display:none">
+      <div class="sim-title">⚙ What-If Simulator</div>
+
+      <!-- Rest Days -->
+      <div class="sim-section">Rest Days</div>
+      <div class="sim-grid">
+        <div class="sim-field">
+          <span class="sim-label">${g.home_team} Rest: <span id="sim-hrest-val-${g.home_team}-${g.away_team}">7</span>d</span>
+          <input type="range" class="sim-range" id="sim-hrest-${g.home_team}-${g.away_team}" min="4" max="14" value="7"
+            oninput="document.getElementById('sim-hrest-val-${g.home_team}-${g.away_team}').textContent=this.value">
+        </div>
+        <div class="sim-field">
+          <span class="sim-label">${g.away_team} Rest: <span id="sim-arest-val-${g.home_team}-${g.away_team}">7</span>d</span>
+          <input type="range" class="sim-range" id="sim-arest-${g.home_team}-${g.away_team}" min="4" max="14" value="7"
+            oninput="document.getElementById('sim-arest-val-${g.home_team}-${g.away_team}').textContent=this.value">
+        </div>
+      </div>
+
+      <!-- Injuries: Home -->
+      <div class="sim-section">${g.home_team} Offense</div>
+      <div class="sim-grid-3">
+        <label class="sim-toggle"><input type="checkbox" id="sim-hqb-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">QB Out</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-hwr1-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">WR1 Out</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-hrb1-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">RB1 Out</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-hol-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">OL Injury</span></label>
+      </div>
+      <div class="sim-section">${g.home_team} Defense</div>
+      <div class="sim-grid-3">
+        <label class="sim-toggle"><input type="checkbox" id="sim-hcb1-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">CB1 Out</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-hedge-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">EDGE Out</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-hlb-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">LB Out</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-hs-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">Safety Out</span></label>
+      </div>
+
+      <!-- Injuries: Away -->
+      <div class="sim-section">${g.away_team} Offense</div>
+      <div class="sim-grid-3">
+        <label class="sim-toggle"><input type="checkbox" id="sim-aqb-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">QB Out</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-awr1-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">WR1 Out</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-arb1-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">RB1 Out</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-aol-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">OL Injury</span></label>
+      </div>
+      <div class="sim-section">${g.away_team} Defense</div>
+      <div class="sim-grid-3">
+        <label class="sim-toggle"><input type="checkbox" id="sim-acb1-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">CB1 Out</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-aedge-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">EDGE Out</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-alb-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">LB Out</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-as-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">Safety Out</span></label>
+      </div>
+
+      <!-- Weather -->
+      <div class="sim-section">Game Conditions</div>
+      <div class="sim-weather-row">
+        <div class="sim-field">
+          <span class="sim-label">Wind: <span id="sim-wind-val-${g.home_team}-${g.away_team}">0</span> mph</span>
+          <input type="range" class="sim-range" id="sim-wind-${g.home_team}-${g.away_team}" min="0" max="50" value="0" step="5"
+            oninput="document.getElementById('sim-wind-val-${g.home_team}-${g.away_team}').textContent=this.value">
+        </div>
+        <div class="sim-field">
+          <span class="sim-label">Temperature: <span id="sim-temp-val-${g.home_team}-${g.away_team}">65</span>°F</span>
+          <input type="range" class="sim-range" id="sim-temp-${g.home_team}-${g.away_team}" min="0" max="110" value="65" step="5"
+            oninput="document.getElementById('sim-temp-val-${g.home_team}-${g.away_team}').textContent=this.value">
+        </div>
+      </div>
+      <div style="display:flex;gap:1.5rem;flex-wrap:wrap">
+        <label class="sim-toggle"><input type="checkbox" id="sim-precip-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">Rain / Snow</span></label>
+        <label class="sim-toggle"><input type="checkbox" id="sim-dome-${g.home_team}-${g.away_team}"><span class="sim-toggle-label">Dome Game (ignore weather)</span></label>
+      </div>
+
+      <button class="sim-btn" onclick="runSimulator('${g.home_team}','${g.away_team}')">Run Simulation →</button>
+      <div class="sim-result" id="sim-result-${g.home_team}-${g.away_team}"></div>
+    </div>
+  </div>
+</div>`;
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────
+function applyFilters() {
+  const t = document.getElementById("f-team").value;
+  const c = document.getElementById("f-conf").value;
+  const c2 = document.getElementById("f-conf2").value;
+
+  const filtered = allGames.filter(g => {
+    const hm = TEAM_META[g.home_team] || {};
+    const am = TEAM_META[g.away_team] || {};
+    if (t !== "ALL" && g.home_team !== t && g.away_team !== t) return false;
+    if (c !== "ALL" && hm.conf !== c && am.conf !== c) return false;
+    if (c2 !== "ALL" && (g.confidence || "low") !== c2) return false;
+    return true;
+  });
+
+  const grid = document.getElementById("games-grid");
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div><div>No games match your filters.</div></div>';
+  } else {
+    // Enrich with division data before rendering
+    const enriched = filtered.map(g => ({
+      ...g,
+      is_division_game: _divisionGames[`${g.home_team}-${g.away_team}`] || false,
+    }));
+    grid.innerHTML = enriched.map(buildCard).join("");
+    setTimeout(restorePickButtons, 50);
+  }
+  document.getElementById("games-count").textContent = filtered.length;
+  document.getElementById("filter-info").textContent =
+    filtered.length === allGames.length
+      ? `Showing all ${allGames.length} matchups`
+      : `Showing ${filtered.length} of ${allGames.length} matchups`;
+}
+
+// ── Custom prediction ─────────────────────────────────────────────────────
+async function runCustomPrediction() {
+  const home = document.getElementById("cp-home").value;
+  const away = document.getElementById("cp-away").value;
+  if (!home || !away || home === away) { alert("Pick two different teams."); return; }
+
+  const resultEl = document.getElementById("custom-result");
+  resultEl.style.display = "block";
+  resultEl.innerHTML = '<div style="color:var(--muted);font-size:0.8rem">Running prediction...</div>';
+
+  try {
+    const resp = await fetch("/api/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ home_team: home, away_team: away }),
+    });
+    const g = await resp.json();
+    if (g.error) throw new Error(g.error);
+    resultEl.innerHTML = buildCard(g);
+  } catch (e) {
+    resultEl.innerHTML = `<div style="color:var(--accent2);font-size:0.8rem">Error: ${e.message}</div>`;
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+async function init() {
+  const setStatus = s => { document.getElementById("lo-status").textContent = s; };
+
+  try {
+    setStatus("Checking model status...");
+    const healthResp = await fetch("/api/health");
+    const health = await healthResp.json();
+
+    if (!health.model_loaded) {
+      setStatus("Model not trained yet. Run: python -m scripts.train");
+      showError("⚠️ Model not loaded. Run `python -m scripts.train` from the project root, then refresh.");
+      document.getElementById("loading").style.opacity = "0";
+      setTimeout(() => document.getElementById("loading").style.display = "none", 500);
+      return;
+    }
+
+    setStatus("Loading model metadata...");
+    const metaResp = await fetch("/api/model-info");
+    modelMeta = await metaResp.json();
+    document.getElementById("sc-acc").textContent = (modelMeta.cv_accuracy * 100).toFixed(1) + "%";
+    document.getElementById("sc-samples").textContent = (modelMeta.n_training_samples || 0).toLocaleString();
+    document.getElementById("sc-feats").textContent = Object.keys(modelMeta.feature_importances || {}).length || 25;
+
+    setStatus("Fetching current season rosters...");
+    try {
+      const rosterResp = await fetch("/api/rosters");
+      const rosterData = await rosterResp.json();
+      if (rosterData.rosters) {
+        KEY_PLAYERS = rosterData.rosters;  // replace empty object with live data
+        console.log(`[rosters] Loaded for ${Object.keys(KEY_PLAYERS).length} teams`);
+      }
+    } catch(e) {
+      console.warn("[rosters] Could not load live rosters:", e.message);
+    }
+
+    setStatus("Populating team selectors...");
+    const teams = (modelMeta.teams_available || []).sort();
+    const selectors = ["f-team", "cp-home", "cp-away"];
+    selectors.forEach(id => {
+      const sel = document.getElementById(id);
+      const existing = sel.innerHTML;
+      teams.forEach(t => {
+        const m = TEAM_META[t] || {};
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = (m.name || t);
+        sel.appendChild(opt);
+      });
+    });
+
+    setStatus("Fetching upcoming games + predictions...");
+    const gamesResp = await fetch("/api/upcoming");
+    const gamesData = await gamesResp.json();
+    allGames = gamesData.games || [];
+    const mode = gamesData.mode || "inseason";
+
+    document.getElementById("sc-games").textContent = allGames.length;
+    if (allGames.length > 0) {
+      const week = allGames[0].week;
+      const season = allGames[0].season;
+      document.getElementById("sc-week").textContent = `Week ${week} · ${season}`;
+      document.getElementById("season-badge").textContent = `NFL ${season}`;
+    }
+
+    // Off-season / scheduled mode: show appropriate banner
+    if (mode === "offseason" || mode === "scheduled") {
+      const banner = document.getElementById("offseason-banner");
+      banner.style.display = "flex";
+      const season = allGames.length > 0 ? allGames[0].season : "";
+
+      if (mode === "scheduled") {
+        // Real schedule is out — show it clearly
+        document.getElementById("ob-body").textContent =
+          `The ${season} NFL schedule has been released! These are the real Week 1 matchups, ` +
+          `predicted using last season\'s rolling team stats and Elo ratings. ` +
+          `Odds are estimated — live FanDuel lines will appear closer to kickoff.`;
+        document.querySelector(".section-title").textContent = `${season} Week 1`;
+        document.getElementById("season-badge").textContent = `NFL ${season}`;
+        // Change banner icon to calendar
+        banner.querySelector(".ob-icon").textContent = "📅";
+        banner.querySelector(".ob-title").textContent = `${season} Schedule Released — Week 1 Predictions`;
+      } else {
+        // Proxy matchups — schedule not out yet
+        document.getElementById("ob-body").textContent =
+          `The NFL season hasn\'t started yet and the ${season} schedule hasn\'t been released. ` +
+          `These matchups are projected from last season\'s Week 1 schedule as a placeholder. ` +
+          `Once the NFL releases the ${season} schedule (typically May), real matchups will appear automatically.`;
+        document.querySelector(".section-title").textContent = `${season} Week 1 Preview`;
+        document.getElementById("season-badge").textContent = `${season} Preview`;
+      }
+    }
+
+    document.getElementById("data-note").textContent =
+      `Data: nfl_data_py · Vegas: ${allGames[0]?.odds_source === "fanduel" ? "FanDuel (live)" : "Estimated"} · ML: scikit-learn GradientBoostingClassifier`;
+
+    applyFilters();
+
+    // Load async enhancements after main render
+    setTimeout(() => {
+      loadSharpIndicators();
+      loadAdjustmentBadges();
+      loadDivisionData();
+      loadByeTeams();
+    }, 800);
+
+    document.getElementById("loading").style.opacity = "0";
+    setTimeout(() => document.getElementById("loading").style.display = "none", 500);
+
+  } catch (e) {
+    setStatus("Connection failed.");
+    showError(`Could not connect to server: ${e.message}. Make sure the Flask server is running on port 5000.`);
+    document.getElementById("loading").style.opacity = "0";
+    setTimeout(() => document.getElementById("loading").style.display = "none", 500);
+  }
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+let _liveInterval = null;
+
+function switchTab(name) {
+  document.querySelectorAll(".tab-btn").forEach((b,i) => {
+    const names = ["predictions","bestbets","live","accuracy"];
+    b.classList.toggle("active", names[i] === name);
+  });
+  document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+  document.getElementById(`tab-${name}`).classList.add("active");
+
+  if (name === "bestbets") loadBestBets();
+  if (name === "accuracy") loadAccuracy();
+  if (name === "live") {
+    loadLiveScores();
+    if (!_liveInterval) _liveInterval = setInterval(loadLiveScores, 30000);
+  } else {
+    if (_liveInterval) { clearInterval(_liveInterval); _liveInterval = null; }
+  }
+}
+
+// ── H2H ──────────────────────────────────────────────────────────────────────
+async function loadH2H(home, away) {
+  const panel = document.querySelector(`#h2h-${home}-${away} .h2h-panel`);
+  const btn   = document.getElementById(`h2h-btn-${home}-${away}`);
+  if (!panel) return;
+
+  // Toggle
+  if (panel.style.display === "block") {
+    panel.style.display = "none";
+    btn.textContent = "H2H History";
+    return;
+  }
+
+  btn.textContent = "Loading...";
+  try {
+    const resp = await fetch(`/api/h2h/${home}/${away}`);
+    const data = await resp.json();
+    const gp   = data.games_played || 0;
+    const hwr  = data.home_win_rate || 0.5;
+    const awr  = data.away_win_rate || 0.5;
+    const hWins = Math.round(hwr * gp);
+    const aWins = gp - hWins;
+
+    const hm = TEAM_META[home] || {};
+    const am = TEAM_META[away] || {};
+    const hC = readable(hm.color, hm.accent);
+    const aC = readable(am.color, am.accent);
+
+    panel.querySelector(".h2h-bar-home").style.width = `${hwr * 100}%`;
+    panel.querySelector(".h2h-bar-home").style.background = hC;
+    panel.querySelector(".h2h-bar-away").style.width = `${awr * 100}%`;
+    panel.querySelector(".h2h-bar-away").style.background = aC;
+    document.getElementById(`h2h-home-label-${home}-${away}`).textContent =
+      gp > 0 ? `${home} ${hWins}W` : "No data";
+    document.getElementById(`h2h-games-${home}-${away}`).textContent =
+      gp > 0 ? `Last ${gp} meetings` : "";
+    document.getElementById(`h2h-away-label-${home}-${away}`).textContent =
+      gp > 0 ? `${aWins}W ${away}` : "";
+    panel.style.display = "block";
+    btn.textContent = "Hide H2H";
+  } catch(e) {
+    btn.textContent = "H2H Error";
+  }
+}
+
+// ── Best Bets ─────────────────────────────────────────────────────────────────
+async function loadBestBets() {
+  const el = document.getElementById("best-bets-list");
+  if (el.dataset.loaded) return;
+  el.innerHTML = '<div class="no-data">Fetching best bets...</div>';
+
+  try {
+    const resp = await fetch("/api/best-bets");
+    const data = await resp.json();
+    const bets = data.best_bets || [];
+    document.getElementById("bb-count").textContent = bets.length;
+
+    if (!bets.length) {
+      el.innerHTML = '<div class="no-data">No high-confidence picks this week — check back closer to game time when odds are posted.</div>';
+      return;
+    }
+
+    el.innerHTML = bets.map(g => {
+      const hm  = TEAM_META[g.home_team] || {};
+      const am  = TEAM_META[g.away_team] || {};
+      const hp  = g.home_win_probability || 0.5;
+      const predHome = hp >= 0.5;
+      const winner   = predHome ? g.home_team : g.away_team;
+      const winnerMeta = predHome ? hm : am;
+      const wc   = readable(winnerMeta.color, winnerMeta.accent);
+      const conf = (Math.max(hp, 1-hp) * 100).toFixed(1);
+      const edge = g.edge != null ? (g.edge > 0 ? `+${(g.edge*100).toFixed(1)}%` : `${(g.edge*100).toFixed(1)}%`) : "est.";
+      const ml   = predHome ? g.home_moneyline : g.away_moneyline;
+      const mlStr = ml != null ? (ml > 0 ? `+${ml}` : `${ml}`) : "—";
+
+      return `<div class="best-bet-card">
+  <div class="bb-teams">
+    <span style="color:${readable(hm.color,hm.accent)}">${g.home_team}</span>
+    <span style="color:var(--muted);font-size:0.8rem"> vs </span>
+    <span style="color:${readable(am.color,am.accent)}">${g.away_team}</span>
+  </div>
+  <div>
+    <div class="bb-pick">Pick: <strong style="color:${wc}">${winner}</strong></div>
+    <div style="font-size:0.65rem;color:var(--muted)">Week ${g.week||"?"} · ${g.season||""}</div>
+  </div>
+  <div class="bb-conf">${conf}%</div>
+  <div>
+    <div class="bb-edge">Edge: ${edge}</div>
+    <div class="bb-edge">ML: ${mlStr}</div>
+  </div>
+</div>`;
+    }).join("");
+    el.dataset.loaded = "1";
+  } catch(e) {
+    el.innerHTML = `<div class="no-data">Error loading best bets: ${e.message}</div>`;
+  }
+}
+
+// ── Accuracy ──────────────────────────────────────────────────────────────────
+async function loadAccuracy() {
+  const el = document.getElementById("accuracy-content");
+  if (el.dataset.loaded) return;
+  el.innerHTML = '<div class="no-data">Loading accuracy stats...</div>';
+
+  try {
+    const [accResp, metaResp] = await Promise.all([
+      fetch("/api/accuracy"),
+      fetch("/api/model-info"),
+    ]);
+    const acc  = await accResp.json();
+    const meta = await metaResp.json();
+
+    const cvAcc   = ((meta.cv_accuracy || 0) * 100).toFixed(1);
+    const cvAuc   = ((meta.cv_auc || 0) * 100).toFixed(1);
+    const trainAcc = ((meta.train_accuracy || 0) * 100).toFixed(1);
+    const resolved = acc.resolved || 0;
+    const liveAcc  = resolved > 0
+      ? ((acc.overall_accuracy || 0) * 100).toFixed(1) + "%"
+      : "—";
+
+    // Model stats
+    let html = `<div class="acc-grid">
+  <div class="acc-card">
+    <div class="acc-val">${cvAcc}%</div>
+    <div class="acc-lbl">CV Accuracy</div>
+    <div class="acc-sub">Walk-forward validation</div>
+  </div>
+  <div class="acc-card">
+    <div class="acc-val">${cvAuc}%</div>
+    <div class="acc-lbl">AUC Score</div>
+    <div class="acc-sub">Discrimination ability</div>
+  </div>
+  <div class="acc-card">
+    <div class="acc-val" style="color:var(--accent)">${liveAcc}</div>
+    <div class="acc-lbl">Live Accuracy</div>
+    <div class="acc-sub">${resolved} resolved predictions</div>
+  </div>
+</div>`;
+
+    // Confidence breakdown if we have resolved predictions
+    if (resolved > 0 && acc.by_confidence) {
+      const bc = acc.by_confidence;
+      html += `<div style="margin-bottom:1.5rem">
+  <div class="section-header" style="margin-bottom:0.8rem">
+    <div class="section-title" style="font-size:1.1rem">By Confidence Level</div>
+  </div>
+  <div class="acc-grid">
+    ${["high","moderate","low"].map(level => {
+      const d = bc[level] || {};
+      const pct = d.total > 0 ? ((d.accuracy||0)*100).toFixed(1)+"%" : "—";
+      const colors = {high:"var(--accent3)", moderate:"var(--accent)", low:"var(--gold)"};
+      return `<div class="acc-card">
+        <div class="acc-val" style="color:${colors[level]}">${pct}</div>
+        <div class="acc-lbl">${level} confidence</div>
+        <div class="acc-sub">${d.correct||0}/${d.total||0} correct</div>
+      </div>`;
+    }).join("")}
+  </div>
+</div>`;
+    }
+
+    // Feature importances
+    const fi = meta.feature_importances || {};
+    const top = Object.entries(fi).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    if (top.length) {
+      const maxImp = top[0][1];
+      html += `<div>
+  <div class="section-header" style="margin-bottom:0.8rem">
+    <div class="section-title" style="font-size:1.1rem">Top Feature Importances</div>
+  </div>
+  ${top.map(([feat, imp]) => {
+    const pct = (imp/maxImp*100).toFixed(0);
+    const label = feat.replace(/^(home_|away_|diff_|roll_)/g,"").replace(/_/g," ");
+    return `<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+        <span style="font-size:0.72rem;color:var(--text)">${label}</span>
+        <span style="font-size:0.68rem;color:var(--muted);font-family:'JetBrains Mono',monospace">${(imp*100).toFixed(2)}%</span>
+      </div>
+      <div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent)88);border-radius:2px"></div>
+      </div>
+    </div>`;
+  }).join("")}
+</div>`;
+    }
+
+    el.innerHTML = html;
+    el.dataset.loaded = "1";
+  } catch(e) {
+    el.innerHTML = `<div class="no-data">Error: ${e.message}</div>`;
+  }
+}
+
+// ── Sharp indicator ───────────────────────────────────────────────────────────
+async function loadSharpIndicators() {
+  for (const g of allGames) {
+    try {
+      const resp = await fetch(`/api/sharp/${g.home_team}/${g.away_team}`);
+      if (!resp.ok) continue;
+      const d = await resp.json();
+      if (d.error) continue;
+      const el = document.getElementById(`sharp-badge-${g.home_team}-${g.away_team}`);
+      if (!el) continue;
+      const stars = d.sharp_stars || 1;
+      const cls   = stars >= 5 ? "sharp-5" : stars >= 4 ? "sharp-4" : stars >= 3 ? "sharp-3" : "sharp-low";
+      const starStr = "★".repeat(stars) + "☆".repeat(5 - stars);
+      const edgePct = (d.sharp_edge * 100).toFixed(1);
+      const dir   = d.sharp_edge > 0 ? "+" : "";
+      el.innerHTML = `<span class="sharp-badge ${cls}" title="ML edge vs Vegas: ${dir}${edgePct}% on ${d.sharp_team}">${starStr} Sharp</span>`;
+    } catch(e) { /* silent */ }
+  }
+}
+
+// ── Roster adjustment explanations ───────────────────────────────────────────
+async function loadAdjustmentBadges() {
+  try {
+    const resp = await fetch("/api/adjustments");
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const adjs = data.adjustments || {};
+
+    for (const g of allGames) {
+      const el = document.getElementById(`adj-${g.home_team}-${g.away_team}`);
+      if (!el) continue;
+      const teams = [g.home_team, g.away_team];
+      let badges = [];
+
+      for (const team of teams) {
+        const teamAdjs = adjs[team] || [];
+        for (const a of teamAdjs.slice(0, 2)) {  // max 2 per team
+          const dir = a.direction === "lost" ? "lost" : "gained";
+          const sign = a.direction === "lost" ? "" : "+";
+          const cls  = a.direction === "lost" ? "adj-neg" : "adj-pos";
+          badges.push(
+            `<span class="${cls} adj-badge" title="${team} ${dir} ${a.player} (${a.position}) — ${a.epa_share}% of ${a.stat}">` +
+            `${team} ${sign}${a.pct_change}% (${a.player.split(" ").pop()})` +
+            `</span>`
+          );
+        }
+      }
+      el.innerHTML = badges.join("");
+    }
+  } catch(e) { /* silent */ }
+}
+
+// ── What-if simulator ─────────────────────────────────────────────────────────
+function toggleSimulator(home, away) {
+  const el  = document.getElementById(`sim-${home}-${away}`);
+  const btn = document.getElementById(`sim-toggle-btn-${home}-${away}`);
+  const visible = el.style.display === "block";
+  el.style.display = visible ? "none" : "block";
+  btn.textContent = visible ? "⚙ What-If" : "✕ Close";
+}
+
+async function runSimulator(home, away) {
+  const resultEl = document.getElementById(`sim-result-${home}-${away}`);
+  resultEl.style.display = "block";
+  resultEl.innerHTML = "<span style=\'color:var(--muted)\'>Running simulation...</span>";
+
+  // Read all fields by explicit ID — never use nth-of-type
+  const g   = (id) => document.getElementById(`sim-${id}-${home}-${away}`);
+  const val = (id) => g(id)?.value;
+  const chk = (id) => g(id)?.checked || false;
+
+  try {
+    const resp = await fetch("/api/simulate", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        home_team:      home,
+        away_team:      away,
+        home_rest_days: parseInt(val("hrest") || 7),
+        away_rest_days: parseInt(val("arest") || 7),
+        // Offense
+        home_qb_out:    chk("hqb"),
+        away_qb_out:    chk("aqb"),
+        home_wr1_out:   chk("hwr1"),
+        away_wr1_out:   chk("awr1"),
+        home_rb1_out:   chk("hrb1"),
+        away_rb1_out:   chk("arb1"),
+        home_ol_injury: chk("hol"),
+        away_ol_injury: chk("aol"),
+        // Defense
+        home_cb1_out:   chk("hcb1"),
+        away_cb1_out:   chk("acb1"),
+        home_edge_out:  chk("hedge"),
+        away_edge_out:  chk("aedge"),
+        home_lb_out:    chk("hlb"),
+        away_lb_out:    chk("alb"),
+        home_s_out:     chk("hs"),
+        away_s_out:     chk("as"),
+        wind_mph:       parseInt(val("wind") || 0),
+        temp_f:         parseInt(val("temp") || 65),
+        precipitation:  chk("precip"),
+        dome_game:      chk("dome"),
+      })
+    });
+
+    // Always check Content-Type before JSON.parse — HTML = server error page
+    const ct = resp.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+      throw new Error(`Server error (${resp.status}) — check terminal for traceback`);
+    }
+
+    const d = await resp.json();
+    if (d.error) throw new Error(d.error);
+
+    const base  = (d.base.home_win_probability * 100).toFixed(1);
+    const sim   = (d.simulated.home_win_probability * 100).toFixed(1);
+    const delta = (d.delta * 100).toFixed(1);
+    const hm    = TEAM_META[home] || {};
+    const am    = TEAM_META[away] || {};
+    const hc    = readable(hm.color, hm.accent);
+    const ac    = readable(am.color, am.accent);
+    const sign  = d.delta >= 0 ? "+" : "";
+    const dCol  = d.delta > 0.02 ? "var(--accent3)" : d.delta < -0.02 ? "var(--accent2)" : "var(--muted)";
+    const simWinnerColor = d.simulated.home_win_probability >= 0.5 ? hc : ac;
+    const factors = d.active_factors || [];
+
+    resultEl.innerHTML = `
+<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:${factors.length ? "10px" : "0"}">
+  <div>
+    <div style="font-size:0.58rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Base</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:${hc};line-height:1">${base}%</div>
+    <div style="font-size:0.6rem;color:var(--muted)">${home} win prob</div>
+  </div>
+  <div style="font-size:1.4rem;color:var(--border)">→</div>
+  <div>
+    <div style="font-size:0.58rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Simulated</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:${simWinnerColor};line-height:1">${sim}%</div>
+    <div style="font-size:0.6rem;color:var(--muted)">${home} win prob</div>
+  </div>
+  <div style="padding-left:12px;border-left:1px solid var(--border)">
+    <div style="font-size:0.58rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Change</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:1.2rem;color:${dCol};font-weight:700">${sign}${delta}%</div>
+  </div>
+</div>
+${factors.length ? `<div class="sim-factors">${factors.map(f => `<span class="sim-factor-chip">${f}</span>`).join("")}</div>` : ""}`;
+  } catch(e) {
+    resultEl.innerHTML = `<span style="color:var(--accent2)">Error: ${e.message}</span>`;
+  }
+}
+
+// ── Live scores ───────────────────────────────────────────────────────────────
+async function loadLiveScores() {
+  const el = document.getElementById("live-games-list");
+  const timeEl = document.getElementById("live-update-time");
+
+  try {
+    const resp = await fetch("/api/live-scores");
+    const data = await resp.json();
+    if (data.error) {
+      el.innerHTML = `<div class="no-data">${data.error}</div>`;
+      return;
+    }
+
+    const games = data.games || [];
+    if (!games.length) {
+      el.innerHTML = `<div class="no-data">No NFL games today. Check back on game days.</div>`;
+      return;
+    }
+
+    el.innerHTML = games.map(g => {
+      const hm = TEAM_META[g.home_team] || {};
+      const am = TEAM_META[g.away_team] || {};
+      const hc = readable(hm.color, hm.accent);
+      const ac = readable(am.color, am.accent);
+      const hp = g.home_win_prob || 0.5;
+      const ap = g.away_win_prob || 0.5;
+      const isLive = g.state === "in";
+      const isFinal = g.state === "post";
+      const isPre = g.state === "pre";
+
+      const statusBadge = isLive
+        ? `<span class="live-clock"><span class="live-dot"></span>Q${g.period} ${g.clock}</span>`
+        : isFinal
+          ? `<span class="final-badge">Final</span>`
+          : `<span class="pre-game-badge">${g.detail || "Upcoming"}</span>`;
+
+      return `<div class="live-card">
+  <div style="flex:1;min-width:200px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:${hm.emoji?hc:'var(--text)'}">${hm.emoji||""} ${g.home_team}</span>
+      <span class="live-score" style="color:${g.home_score>g.away_score?hc:'var(--muted)'}">${g.home_score}</span>
+      <span style="color:var(--muted)">–</span>
+      <span class="live-score" style="color:${g.away_score>g.home_score?ac:'var(--muted)'}">${g.away_score}</span>
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:${am.emoji?ac:'var(--text)'}">${g.away_team} ${am.emoji||""}</span>
+    </div>
+    ${statusBadge}
+  </div>
+  <div style="flex:1;min-width:180px">
+    <div style="font-size:0.6rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px">Win Probability</div>
+    <div class="live-wp-bar">
+      <div class="live-wp-home" style="width:${(hp*100).toFixed(1)}%;background:${hc}"></div>
+      <div class="live-wp-away" style="width:${(ap*100).toFixed(1)}%;background:${ac}"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:3px;font-family:'JetBrains Mono',monospace;font-size:0.65rem">
+      <span style="color:${hc}">${(hp*100).toFixed(1)}%</span>
+      <span style="color:${ac}">${(ap*100).toFixed(1)}%</span>
+    </div>
+  </div>
+</div>`;
+    }).join("");
+
+    if (timeEl) {
+      const now = new Date();
+      timeEl.textContent = `Updated ${now.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}`;
+    }
+  } catch(e) {
+    el.innerHTML = `<div class="no-data">Could not load live scores: ${e.message}</div>`;
+  }
+}
+
+// ── Dark/light mode ───────────────────────────────────────────────────────────
+function toggleTheme() {
+  const light = document.body.classList.toggle("light");
+  localStorage.setItem("nfl_theme", light ? "light" : "dark");
+  document.getElementById("theme-toggle").textContent = light ? "☀️" : "🌙";
+}
+(function() {
+  if (localStorage.getItem("nfl_theme") === "light") {
+    document.body.classList.add("light");
+    // Button text set after DOM ready
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("theme-toggle");
+      if (btn) btn.textContent = "☀️";
+    });
+  }
+})();
+
+// ── Division game data ─────────────────────────────────────────────────────────
+let _divisionGames = {};
+async function loadDivisionData() {
+  try {
+    const resp = await fetch("/api/division-games");
+    if (!resp.ok) return;
+    const data = await resp.json();
+    for (const g of data.games || []) {
+      _divisionGames[`${g.home_team}-${g.away_team}`] = g.is_division_game;
+    }
+    // Re-render cards with division badges if already loaded
+    if (allGames.length) applyFilters();
+  } catch(e) { /* silent */ }
+}
+
+// ── Pick tracker ──────────────────────────────────────────────────────────────
+function _picksKey() { return "nfl_picks_" + (new Date().toISOString().slice(0,7)); }
+
+function loadPicks() { return JSON.parse(localStorage.getItem(_picksKey()) || "{}"); }
+function savePicks(picks) { localStorage.setItem(_picksKey(), JSON.stringify(picks)); }
+
+function setPick(home, away, pick) {
+  const picks = loadPicks();
+  const key   = `${home}-${away}`;
+  picks[key]  = pick;
+  savePicks(picks);
+  renderPickButtons(home, away, pick);
+  updatePicksSummary();
+}
+
+function renderPickButtons(home, away, pick) {
+  const hBtn = document.getElementById(`pick-home-${home}-${away}`);
+  const aBtn = document.getElementById(`pick-away-${home}-${away}`);
+  if (!hBtn || !aBtn) return;
+  if (pick === home) {
+    hBtn.classList.add("pick-selected");    hBtn.classList.remove("pick-unselected");
+    aBtn.classList.add("pick-unselected");  aBtn.classList.remove("pick-selected");
+  } else if (pick === away) {
+    aBtn.classList.add("pick-selected");    aBtn.classList.remove("pick-unselected");
+    hBtn.classList.add("pick-unselected");  hBtn.classList.remove("pick-selected");
+  } else {
+    hBtn.classList.remove("pick-selected","pick-unselected");
+    aBtn.classList.remove("pick-selected","pick-unselected");
+  }
+}
+
+function updatePicksSummary() {
+  const picks = loadPicks();
+  const keys  = Object.keys(picks);
+  if (!keys.length) {
+    document.getElementById("picks-summary").style.display = "none";
+    return;
+  }
+  document.getElementById("picks-summary").style.display = "inline-flex";
+  document.getElementById("picks-record").textContent = `${keys.length} pick${keys.length!==1?"s":""}`;
+}
+
+function clearPicks() {
+  localStorage.removeItem(_picksKey());
+  // Clear all button states
+  document.querySelectorAll(".pick-btn").forEach(b => {
+    b.classList.remove("pick-selected","pick-unselected");
+  });
+  updatePicksSummary();
+}
+
+function restorePickButtons() {
+  const picks = loadPicks();
+  for (const [key, pick] of Object.entries(picks)) {
+    const [home, away] = key.split("-");
+    if (home && away) renderPickButtons(home, away, pick);
+  }
+  updatePicksSummary();
+}
+
+// ── Email subscribe ───────────────────────────────────────────────────────────
+async function submitSubscribe() {
+  const email = document.getElementById("sub-email").value.trim();
+  const msg   = document.getElementById("sub-msg");
+  if (!email || !email.includes("@")) {
+    msg.style.display = "inline";
+    msg.style.background = "rgba(255,59,92,0.1)";
+    msg.style.color = "var(--accent2)";
+    msg.textContent = "Enter a valid email";
+    return;
+  }
+  try {
+    const resp = await fetch("/api/subscribe", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ email }),
+    });
+    const d = await resp.json();
+    msg.style.display = "inline";
+    if (d.success) {
+      msg.style.background = "rgba(127,255,110,0.1)";
+      msg.style.color = "var(--accent3)";
+      msg.textContent = d.is_new ? "✓ Subscribed!" : "Already subscribed";
+      document.getElementById("sub-email").value = "";
+    } else {
+      msg.style.background = "rgba(255,59,92,0.1)";
+      msg.style.color = "var(--accent2)";
+      msg.textContent = d.error || "Failed";
+    }
+  } catch(e) {
+    msg.style.display = "inline";
+    msg.style.color = "var(--accent2)";
+    msg.textContent = "Error — try again";
+  }
+}
+
+
+// ── Bye week ──────────────────────────────────────────────────────────────────
+async function loadByeTeams() {
+  try {
+    const resp = await fetch("/api/bye-teams");
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const byes = data.bye_teams || [];
+    if (!byes.length) return;
+
+    const section = document.getElementById("bye-section");
+    const grid    = document.getElementById("bye-teams-grid");
+    const title   = section.querySelector(".bye-title");
+
+    if (data.week) {
+      title.textContent = `🛋️ Bye Week ${data.week} — ${byes.length} Team${byes.length !== 1 ? "s" : ""} Off`;
+    }
+
+    grid.innerHTML = byes.map(t => {
+      const m  = TEAM_META[t] || {};
+      const tc = readable(m.color, m.accent);
+      return `<a href="/team/${t}" class="bye-team-chip" title="View ${m.name||t} — on bye">
+  <span class="bye-team-emoji">${m.emoji || "🏈"}</span>
+  <div>
+    <div class="bye-team-abbr" style="color:${tc}">${t}</div>
+    <div class="bye-team-name">${m.name || t}</div>
+  </div>
+</a>`;
+    }).join("");
+
+    section.style.display = "block";
+  } catch(e) { /* silent — bye section stays hidden */ }
+}
+
+// ── Team jump ─────────────────────────────────────────────────────────────────
+const ALL_TEAMS = Object.keys(TEAM_META).filter(k => k !== "LA");
+function showTeamJump(q) {
+  const list = document.getElementById("team-jump-list");
+  const matches = q.length === 0
+    ? ALL_TEAMS.slice(0, 8)
+    : ALL_TEAMS.filter(t =>
+        t.includes(q.toUpperCase()) ||
+        (TEAM_META[t].name||"").toLowerCase().includes(q.toLowerCase())
+      ).slice(0, 8);
+  if (!matches.length) { list.style.display = "none"; return; }
+  list.innerHTML = matches.map(t => {
+    const m  = TEAM_META[t] || {};
+    const tc = readable(m.color, m.accent);
+    return `<div onclick="window.location='/team/${t}'"
+      style="padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;
+             font-size:0.78rem;transition:background 0.1s"
+      onmouseover="this.style.background='var(--surface2)'"
+      onmouseout="this.style.background=''"
+    >
+      <span style="font-family:'Bebas Neue',sans-serif;color:${tc};width:36px">${t}</span>
+      <span style="color:var(--muted);font-size:0.7rem">${m.name||""}</span>
+    </div>`;
+  }).join("");
+  list.style.display = "block";
+}
+function hideTeamJump() {
+  const list = document.getElementById("team-jump-list");
+  if (list) list.style.display = "none";
+}
+
+// ── Push notifications ────────────────────────────────────────────────────────
+const VAPID_PUBLIC_KEY = "";   // Set this to your VAPID public key from .env
+
+async function toggleNotifications() {
+  const btn = document.getElementById("notify-btn");
+
+  // Check if already subscribed (stored in localStorage)
+  if (localStorage.getItem("push_subscribed") === "1") {
+    // Already subscribed — show info
+    btn.textContent = "🔔 Active";
+    setTimeout(() => { btn.textContent = "🔔 Alerts"; }, 2000);
+    return;
+  }
+
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    alert("Push notifications are not supported in this browser.");
+    return;
+  }
+
+  try {
+    // Register service worker
+    const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    await navigator.serviceWorker.ready;
+
+    // Request permission
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      btn.textContent = "🔕 Blocked";
+      return;
+    }
+
+    // Subscribe to push
+    let subscription;
+    if (VAPID_PUBLIC_KEY) {
+      subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: _urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    } else {
+      // No VAPID key — just mark as subscribed for email-only alerts
+      subscription = null;
+    }
+
+    // Get team preference (from active filter if set)
+    const teamChip = document.querySelector(".team-filter-chip.active");
+    const teamPref = teamChip?.dataset?.team || null;
+
+    // Send to server
+    if (subscription) {
+      await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...subscription.toJSON(), team: teamPref }),
+      });
+    }
+
+    localStorage.setItem("push_subscribed", "1");
+    if (teamPref) localStorage.setItem("push_team", teamPref);
+
+    btn.classList.add("subscribed");
+    btn.textContent = "🔔 On";
+    setTimeout(() => { btn.textContent = "🔔 Alerts"; }, 2000);
+
+  } catch (e) {
+    console.warn("Push subscription failed:", e);
+    btn.textContent = "🔕 Error";
+    setTimeout(() => { btn.textContent = "🔔 Alerts"; }, 3000);
+  }
+}
+
+function _urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64  = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw     = window.atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+
+// Restore notification button state
+(function() {
+  if (localStorage.getItem("push_subscribed") === "1") {
+    document.addEventListener("DOMContentLoaded", () => {
+      const btn = document.getElementById("notify-btn");
+      if (btn) btn.classList.add("subscribed");
+    });
+  }
+})();
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+document.addEventListener("keydown", (e) => {
+  // Don't fire when typing in an input
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+  switch (e.key) {
+    case "1": switchTab("predictions"); break;
+    case "2": switchTab("bestbets");    break;
+    case "3": switchTab("live");        break;
+    case "4": switchTab("accuracy");    break;
+    case "/":
+      e.preventDefault();
+      document.getElementById("team-jump")?.focus();
+      break;
+    case "Escape":
+      document.getElementById("team-jump")?.blur();
+      hideTeamJump();
+      break;
+    case "d": toggleTheme(); break;
+  }
+});
+
+// Show keyboard shortcut hint on first visit
+(function() {
+  if (!localStorage.getItem("shortcuts_shown")) {
+    setTimeout(() => {
+      const hint = document.createElement("div");
+      hint.style.cssText = "position:fixed;bottom:1.5rem;right:1.5rem;z-index:999;" +
+        "background:var(--surface);border:1px solid var(--border);border-radius:10px;" +
+        "padding:0.8rem 1rem;font-size:0.68rem;color:var(--muted);max-width:220px;" +
+        "box-shadow:0 8px 24px rgba(0,0,0,0.4);animation:fadeIn 0.3s ease";
+      hint.innerHTML = `<div style="color:var(--text);font-weight:700;margin-bottom:6px">⌨️ Keyboard Shortcuts</div>
+        <div><kbd style="background:var(--surface2);padding:1px 5px;border-radius:3px;font-family:monospace">1-4</kbd> Switch tabs</div>
+        <div style="margin-top:3px"><kbd style="background:var(--surface2);padding:1px 5px;border-radius:3px;font-family:monospace">/</kbd> Search teams</div>
+        <div style="margin-top:3px"><kbd style="background:var(--surface2);padding:1px 5px;border-radius:3px;font-family:monospace">D</kbd> Dark/light mode</div>
+        <div style="margin-top:8px;text-align:right"><button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.65rem">Dismiss</button></div>`;
+      document.body.appendChild(hint);
+      localStorage.setItem("shortcuts_shown", "1");
+      setTimeout(() => hint.remove(), 8000);
+    }, 3000);
+  }
+})();
+
+window.addEventListener("DOMContentLoaded", () => setTimeout(init, 300));
+</script>
+</body>
+</html>

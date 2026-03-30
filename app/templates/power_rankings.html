@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFL Oracle — Power Rankings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+// ── Crosshair plugin for Chart.js ─────────────────────────────────────────────
+// Draws a vertical line at the cursor and pins the tooltip to the nearest point.
+const crosshairPlugin = {
+  id: "crosshair",
+  afterDraw(chart) {
+    if (!chart._crosshairX) return;
+    const ctx = chart.ctx;
+    const yAxis = chart.scales.y;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(chart._crosshairX, yAxis.top);
+    ctx.lineTo(chart._crosshairX, yAxis.bottom);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+
+    // Draw dot on the data line at crosshair position
+    if (chart._crosshairDot) {
+      const { x, y, color } = chart._crosshairDot;
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.5)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([]);
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  afterEvent(chart, args) {
+    const event = args.event;
+    if (event.type === "mousemove") {
+      const xAxis = chart.scales.x;
+      const x = event.x;
+      if (x >= xAxis.left && x <= xAxis.right) {
+        chart._crosshairX = x;
+        // Find nearest data point x position
+        const ds = chart.data.datasets[0];
+        const meta = chart.getDatasetMeta(0);
+        let nearest = null, minDist = Infinity;
+        meta.data.forEach((pt, i) => {
+          const dist = Math.abs(pt.x - x);
+          if (dist < minDist) { minDist = dist; nearest = { pt, i }; }
+        });
+        if (nearest) {
+          chart._crosshairDot = {
+            x: nearest.pt.x,
+            y: nearest.pt.y,
+            color: ds.borderColor,
+          };
+          // Force tooltip to show at nearest point
+          chart.tooltip.setActiveElements(
+            [{ datasetIndex: 0, index: nearest.i }],
+            { x, y: event.y }
+          );
+        }
+        chart.update("none");
+      }
+    } else if (event.type === "mouseout") {
+      chart._crosshairX = null;
+      chart._crosshairDot = null;
+      chart.tooltip.setActiveElements([], {});
+      chart.update("none");
+    }
+  },
+};
+Chart.register(crosshairPlugin);
+</script>
+<style>
+  :root { --bg:#080b10; --surface:#0e1420; --surface2:#161d2e; --surface3:#1d2640; --border:rgba(255,255,255,0.07); --accent:#00e5ff; --accent2:#ff3b5c; --accent3:#7fff6e; --gold:#ffc940; --text:#e8eef8; --muted:#7a8aa0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden; }
+  body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(0,229,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.025) 1px,transparent 1px); background-size:60px 60px; pointer-events:none; z-index:0; }
+  header { position:sticky; top:0; z-index:100; background:rgba(8,11,16,0.93); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:0 2rem; }
+  .header-inner { max-width:1400px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; height:64px; }
+  .logo { display:flex; align-items:center; gap:12px; text-decoration:none; }
+  .logo-icon { width:36px; height:36px; background:linear-gradient(135deg,var(--accent),#0066ff); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+  .logo-text { font-family:'Bebas Neue',sans-serif; font-size:1.7rem; letter-spacing:2px; color:var(--text); line-height:1; }
+  .header-right { display:flex; align-items:center; gap:10px; }
+  .nav-btn { color:var(--muted); font-size:0.78rem; font-weight:600; text-decoration:none; letter-spacing:0.5px; padding:6px 14px; border:1px solid var(--border); border-radius:8px; transition:color 0.2s,border-color 0.2s; }
+  .nav-btn:hover { color:var(--accent); border-color:var(--accent); }
+  .nav-btn.active { color:var(--accent); border-color:rgba(0,229,255,0.4); background:rgba(0,229,255,0.06); }
+  .badge-live { padding:4px 12px; border-radius:20px; font-size:0.68rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; background:rgba(255,59,92,0.1); color:var(--accent2); border:1px solid rgba(255,59,92,0.25); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
+  .main { max-width:1100px; margin:0 auto; padding:2rem; position:relative; z-index:1; }
+  .page-header { margin-bottom:2rem; }
+  .page-title { font-family:'Bebas Neue',sans-serif; font-size:2.2rem; letter-spacing:3px; }
+  .page-sub { font-size:0.72rem; color:var(--muted); margin-top:4px; font-family:'JetBrains Mono',monospace; }
+
+  /* Conference filter */
+  .conf-tabs { display:flex; gap:4px; margin-bottom:1.5rem; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:4px; width:fit-content; }
+  .conf-btn { padding:6px 16px; border-radius:7px; font-size:0.78rem; font-weight:700; letter-spacing:0.5px; cursor:pointer; border:none; background:transparent; color:var(--muted); transition:all 0.15s; }
+  .conf-btn.active { background:var(--surface2); color:var(--text); }
+
+  /* Rankings table */
+  .rankings-table { width:100%; border-collapse:collapse; }
+  .rankings-table thead tr { background:var(--surface); }
+  .rankings-table th { padding:10px 14px; font-size:0.6rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); text-align:left; white-space:nowrap; border-bottom:1px solid var(--border); }
+  .rankings-table th.num { text-align:right; }
+  .rankings-table tbody tr { border-bottom:1px solid var(--border); transition:background 0.1s; cursor:pointer; }
+  .rankings-table tbody tr:hover { background:var(--surface); }
+  .rankings-table td { padding:12px 14px; vertical-align:middle; }
+
+  .rank-num { font-family:'Bebas Neue',sans-serif; font-size:1.3rem; color:var(--muted); line-height:1; width:36px; }
+  .rank-1 .rank-num { color:var(--gold); }
+  .rank-2 .rank-num { color:var(--muted); }
+  .rank-3 .rank-num { color:#cd7f32; }
+
+  .team-cell { display:flex; align-items:center; gap:12px; }
+  .team-emoji { font-size:1.3rem; width:36px; height:36px; display:flex; align-items:center; justify-content:center; border-radius:50%; flex-shrink:0; }
+  .team-abbr-big { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:1px; line-height:1; }
+  .team-name-small { font-size:0.7rem; color:var(--muted); margin-top:1px; }
+
+  .elo-val { font-family:'JetBrains Mono',monospace; font-size:0.9rem; font-weight:700; text-align:right; }
+  .power-bar-wrap { width:160px; height:8px; background:var(--surface2); border-radius:4px; overflow:hidden; display:inline-block; vertical-align:middle; }
+  .power-bar-fill { height:100%; border-radius:4px; transition:width 0.6s cubic-bezier(0.4,0,0.2,1); }
+
+  .trend-badge { font-family:'JetBrains Mono',monospace; font-size:0.72rem; font-weight:700; padding:2px 7px; border-radius:4px; white-space:nowrap; }
+  .trend-up   { background:rgba(127,255,110,0.1); color:var(--accent3); }
+  .trend-down { background:rgba(255,59,92,0.1);   color:var(--accent2); }
+  .trend-flat { background:rgba(255,255,255,0.05); color:var(--muted); }
+
+  .conf-badge { font-size:0.6rem; font-weight:700; letter-spacing:1px; padding:2px 7px; border-radius:4px; text-transform:uppercase; }
+  .afc { background:rgba(0,229,255,0.08); color:var(--accent); border:1px solid rgba(0,229,255,0.2); }
+  .nfc { background:rgba(255,59,92,0.08); color:var(--accent2); border:1px solid rgba(255,59,92,0.2); }
+
+  .loading-overlay { position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem; transition:opacity 0.5s; }
+  .lo-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:4px; color:var(--accent); }
+  .lo-bar { width:280px; height:3px; background:var(--surface2); border-radius:10px; overflow:hidden; position:relative; }
+  .lo-fill { position:absolute; left:-100%; top:0; height:100%; width:60%; background:linear-gradient(90deg,transparent,var(--accent),transparent); animation:sweep 1.2s ease-in-out infinite; }
+  @keyframes sweep { from{left:-100%} to{left:100%} }
+  .lo-status { font-size:0.72rem; color:var(--muted); letter-spacing:2px; font-family:'JetBrains Mono',monospace; }
+
+  footer { position:relative; z-index:1; border-top:1px solid var(--border); padding:1.2rem 2rem; margin-top:3rem; text-align:center; font-size:0.7rem; color:var(--muted); }
+  .fa { color:var(--accent); font-weight:600; }
+  @media(max-width:700px) { .power-bar-wrap { display:none; } .main { padding:1rem; } }
+
+  /* ELO CHART MODAL */
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:500; display:none; align-items:center; justify-content:center; padding:1rem; }
+  .modal-overlay.open { display:flex; }
+  .modal-box { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.5rem; width:100%; max-width:700px; max-height:90vh; overflow-y:auto; position:relative; }
+  .modal-close { position:absolute; top:1rem; right:1rem; background:none; border:1px solid var(--border); color:var(--muted); width:28px; height:28px; border-radius:6px; cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center; }
+  .modal-close:hover { color:var(--text); border-color:var(--text); }
+  .modal-title { font-family:'Bebas Neue',sans-serif; font-size:1.6rem; letter-spacing:2px; margin-bottom:0.3rem; }
+  .modal-sub { font-size:0.7rem; color:var(--muted); margin-bottom:1.2rem; font-family:'JetBrains Mono',monospace; }
+  .chart-wrap { position:relative; height:280px; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="lo-title">POWER RANKINGS</div>
+  <div class="lo-bar"><div class="lo-fill"></div></div>
+  <div class="lo-status">Loading Elo ratings...</div>
+</div>
+
+<header>
+  <div class="header-inner">
+    <a class="logo" href="/">
+      <div class="logo-icon">🏈</div>
+      <div><div class="logo-text">NFL Oracle</div></div>
+    </a>
+    <div class="header-right">
+      <a href="/" class="nav-btn">🏆 Predictions</a>
+      <a href="/rosters" class="nav-btn">📋 Rosters</a>
+      <a href="/power-rankings" class="nav-btn active">⚡ Rankings</a>
+      <div style="position:relative">
+        <input id="team-jump" placeholder="Go to team..." autocomplete="off"
+          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);
+                 padding:5px 10px;border-radius:7px;font-size:0.75rem;width:120px;outline:none;
+                 font-family:'DM Sans',sans-serif"
+          oninput="showTeamJump(this.value)" onblur="setTimeout(()=>hideTeamJump(),200)"
+          onfocus="showTeamJump(this.value)">
+        <div id="team-jump-list" style="display:none;position:absolute;top:34px;right:0;
+          background:var(--surface);border:1px solid var(--border);border-radius:8px;
+          z-index:200;min-width:160px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.4)">
+        </div>
+      </div>
+      <span class="badge-live" id="season-badge">NFL 2025</span>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+  <div class="page-header">
+    <div class="page-title">⚡ Power Rankings</div>
+    <div class="page-sub" id="page-sub">Elo ratings based on historical game results · Updated after every game</div>
+  </div>
+
+  <div class="conf-tabs">
+    <button class="conf-btn active" onclick="filterConf('ALL')">All 32</button>
+    <button class="conf-btn" onclick="filterConf('AFC')">AFC</button>
+    <button class="conf-btn" onclick="filterConf('NFC')">NFC</button>
+  </div>
+
+  <table class="rankings-table" id="rankings-table">
+    <thead><tr>
+      <th style="width:40px">Rank</th>
+      <th>Team</th>
+      <th>Conf</th>
+      <th class="num">Elo</th>
+      <th>Power Score</th>
+      <th class="num">Trend</th>
+    </tr></thead>
+    <tbody id="rankings-body"></tbody>
+  </table>
+</main>
+
+<!-- Hover Elo Preview Panel -->
+<div id="elo-preview" style="
+  display:none; position:fixed; z-index:400;
+  background:rgba(14,20,32,0.97); border:1px solid var(--border);
+  border-radius:12px; padding:1rem 1.2rem; width:380px;
+  box-shadow:0 16px 48px rgba(0,0,0,0.6); pointer-events:none;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.6rem">
+    <span id="preview-emoji" style="font-size:1.3rem">🏈</span>
+    <div>
+      <div id="preview-name" style="font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:1px"></div>
+      <div id="preview-sub" style="font-size:0.6rem;color:var(--muted);font-family:'JetBrains Mono',monospace"></div>
+    </div>
+    <div style="margin-left:auto;text-align:right">
+      <div id="preview-elo" style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem"></div>
+      <div style="font-size:0.58rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Elo</div>
+    </div>
+  </div>
+  <div style="height:120px;position:relative"><canvas id="preview-chart"></canvas></div>
+  <div style="font-size:0.62rem;color:var(--muted);text-align:center;margin-top:6px">Click to open full team page</div>
+</div>
+
+<!-- Full Chart Modal (still accessible from team page links) -->
+<div class="modal-overlay" id="elo-modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title" id="modal-team-name">Team</div>
+    <div class="modal-sub" id="modal-team-sub">Elo trajectory</div>
+    <div class="chart-wrap"><canvas id="elo-chart"></canvas></div>
+    <div style="margin-top:1rem;display:flex;gap:2rem;flex-wrap:wrap" id="modal-stats"></div>
+  </div>
+</div>
+
+<footer>
+  <span class="fa">NFL Oracle</span> · Power rankings powered by
+  <span class="fa">FiveThirtyEight-style Elo ratings</span> · Updated weekly after game results
+</footer>
+
+<script>
+const TEAM_META = {
+  ARI:{name:"Arizona Cardinals",  conf:"NFC",div:"NFC West",  color:"#97233F",accent:"#FFB612",emoji:"🔴"},
+  ATL:{name:"Atlanta Falcons",    conf:"NFC",div:"NFC South", color:"#A71930",accent:"#A5ACAF",emoji:"🔴"},
+  BAL:{name:"Baltimore Ravens",   conf:"AFC",div:"AFC North", color:"#9E7C0C",accent:"#9E7C0C",emoji:"🟣"},
+  BUF:{name:"Buffalo Bills",      conf:"AFC",div:"AFC East",  color:"#C60C30",accent:"#00338D",emoji:"🔵"},
+  CAR:{name:"Carolina Panthers",  conf:"NFC",div:"NFC South", color:"#0085CA",accent:"#0085CA",emoji:"🔵"},
+  CHI:{name:"Chicago Bears",      conf:"NFC",div:"NFC North", color:"#C83803",accent:"#C83803",emoji:"🟠"},
+  CIN:{name:"Cincinnati Bengals", conf:"AFC",div:"AFC North", color:"#FB4F14",accent:"#FB4F14",emoji:"🟠"},
+  CLE:{name:"Cleveland Browns",   conf:"AFC",div:"AFC North", color:"#FF3C00",accent:"#FF3C00",emoji:"🟠"},
+  DAL:{name:"Dallas Cowboys",     conf:"NFC",div:"NFC East",  color:"#869397",accent:"#869397",emoji:"🔵"},
+  DEN:{name:"Denver Broncos",     conf:"AFC",div:"AFC West",  color:"#FB4F14",accent:"#FB4F14",emoji:"🟠"},
+  DET:{name:"Detroit Lions",      conf:"NFC",div:"NFC North", color:"#0076B6",accent:"#0076B6",emoji:"🔵"},
+  GB: {name:"Green Bay Packers",  conf:"NFC",div:"NFC North", color:"#FFB612",accent:"#FFB612",emoji:"🟡"},
+  HOU:{name:"Houston Texans",     conf:"AFC",div:"AFC South", color:"#A71930",accent:"#A71930",emoji:"🔵"},
+  IND:{name:"Indianapolis Colts", conf:"AFC",div:"AFC South", color:"#A2AAAD",accent:"#A2AAAD",emoji:"🔵"},
+  JAX:{name:"Jacksonville Jaguars",conf:"AFC",div:"AFC South",color:"#9F792C",accent:"#9F792C",emoji:"🟡"},
+  KC: {name:"Kansas City Chiefs", conf:"AFC",div:"AFC West",  color:"#E31837",accent:"#FFB81C",emoji:"🔴"},
+  LV: {name:"Las Vegas Raiders",  conf:"AFC",div:"AFC West",  color:"#A5ACAF",accent:"#A5ACAF",emoji:"⚫"},
+  LAC:{name:"Los Angeles Chargers",conf:"AFC",div:"AFC West", color:"#0080C6",accent:"#FFC20E",emoji:"🔵"},
+  LAR:{name:"Los Angeles Rams",   conf:"NFC",div:"NFC West",  color:"#FFA300",accent:"#FFA300",emoji:"🔵"},
+  LA: {name:"Los Angeles Rams",   conf:"NFC",div:"NFC West",  color:"#FFA300",accent:"#FFA300",emoji:"🔵"},
+  MIA:{name:"Miami Dolphins",     conf:"AFC",div:"AFC East",  color:"#008E97",accent:"#FC4C02",emoji:"🟠"},
+  MIN:{name:"Minnesota Vikings",  conf:"NFC",div:"NFC North", color:"#FFC62F",accent:"#FFC62F",emoji:"🟣"},
+  NE: {name:"New England Patriots",conf:"AFC",div:"AFC East", color:"#C60C30",accent:"#C60C30",emoji:"🔵"},
+  NO: {name:"New Orleans Saints", conf:"NFC",div:"NFC South", color:"#D3BC8D",accent:"#D3BC8D",emoji:"⚫"},
+  NYG:{name:"New York Giants",    conf:"NFC",div:"NFC East",  color:"#A71930",accent:"#A71930",emoji:"🔵"},
+  NYJ:{name:"New York Jets",      conf:"AFC",div:"AFC East",  color:"#125740",accent:"#FFFFFF",emoji:"🟢"},
+  PHI:{name:"Philadelphia Eagles",conf:"NFC",div:"NFC East",  color:"#A5ACAF",accent:"#A5ACAF",emoji:"🟢"},
+  PIT:{name:"Pittsburgh Steelers",conf:"AFC",div:"AFC North", color:"#FFB612",accent:"#FFB612",emoji:"🟡"},
+  SF: {name:"San Francisco 49ers",conf:"NFC",div:"NFC West",  color:"#AA0000",accent:"#B3995D",emoji:"🔴"},
+  SEA:{name:"Seattle Seahawks",   conf:"NFC",div:"NFC West",  color:"#69BE28",accent:"#69BE28",emoji:"🟢"},
+  TB: {name:"Tampa Bay Buccaneers",conf:"NFC",div:"NFC South",color:"#D50A0A",accent:"#FF7900",emoji:"🔴"},
+  TEN:{name:"Tennessee Titans",   conf:"AFC",div:"AFC South", color:"#4B92DB",accent:"#4B92DB",emoji:"🔵"},
+  WAS:{name:"Washington Commanders",conf:"NFC",div:"NFC East",color:"#FFB612",accent:"#FFB612",emoji:"🟡"},
+};
+
+function _luminance(hex) {
+  const c = hex.replace("#","");
+  const r=parseInt(c.slice(0,2),16)/255, g=parseInt(c.slice(2,4),16)/255, b=parseInt(c.slice(4,6),16)/255;
+  const tl = v => v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);
+  return 0.2126*tl(r)+0.7152*tl(g)+0.0722*tl(b);
+}
+function readable(hex, accent) {
+  if (!hex||hex.length<6) return "var(--accent)";
+  try {
+    if (_luminance(hex)>=0.06) return hex;
+    if (accent) return accent;
+    const c=hex.replace("#","");
+    const blend=v=>Math.round(parseInt(v,16)+(255-parseInt(v,16))*0.55).toString(16).padStart(2,"0");
+    return "#"+blend(c.slice(0,2))+blend(c.slice(2,4))+blend(c.slice(4,6));
+  } catch(e){ return "var(--accent)"; }
+}
+
+let allRankings = [];
+let currentConf = "ALL";
+
+function filterConf(conf) {
+  currentConf = conf;
+  document.querySelectorAll(".conf-btn").forEach((b,i) => {
+    b.classList.toggle("active", ["ALL","AFC","NFC"][i] === conf);
+  });
+  renderTable();
+}
+
+function renderTable() {
+  const filtered = currentConf === "ALL"
+    ? allRankings
+    : allRankings.filter(r => (TEAM_META[r.team]||{}).conf === currentConf);
+
+  const body = document.getElementById("rankings-body");
+  const maxElo = allRankings[0]?.elo || 1600;
+  const minElo = allRankings[allRankings.length-1]?.elo || 1400;
+
+  body.innerHTML = filtered.map((r, idx) => {
+    const rank     = allRankings.indexOf(r) + 1;
+    const meta     = TEAM_META[r.team] || { name:r.team, conf:"", color:"#334", accent:"#334", emoji:"🏈" };
+    const tc       = readable(meta.color, meta.accent);
+    const ps       = r.power_score;
+    const eloNorm  = Math.min(100, Math.max(0, (r.elo - minElo) / (maxElo - minElo) * 100));
+
+    // Trend based on distance from 1500 (average)
+    const diff  = r.elo - 1500;
+    const trend = diff > 30
+      ? `<span class="trend-badge trend-up">▲ ${diff.toFixed(0)}</span>`
+      : diff < -30
+        ? `<span class="trend-badge trend-down">▼ ${Math.abs(diff).toFixed(0)}</span>`
+        : `<span class="trend-badge trend-flat">— avg</span>`;
+
+    const rankClass = rank === 1 ? "rank-1" : rank === 2 ? "rank-2" : rank === 3 ? "rank-3" : "";
+
+    return `<tr class="${rankClass}"
+      onclick="window.location='/team/${r.team}'"
+      onmouseenter="previewChart('${r.team}', this)"
+      onmouseleave="closePreview()"
+      style="cursor:pointer" title="Click for full team page · Hover for Elo preview">
+  <td><div class="rank-num">${rank}</div></td>
+  <td>
+    <div class="team-cell">
+      <div class="team-emoji" style="background:${tc}22;border:2px solid ${tc}44">${meta.emoji}</div>
+      <div>
+        <div class="team-abbr-big" style="color:${tc}">${r.team}</div>
+        <div class="team-name-small">${meta.name}</div>
+      </div>
+    </div>
+  </td>
+  <td><span class="conf-badge ${(meta.conf||"").toLowerCase()}">${meta.conf||"—"}</span></td>
+  <td class="elo-val" style="color:${tc}">${r.elo.toFixed(0)}</td>
+  <td>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="power-bar-wrap">
+        <div class="power-bar-fill" style="width:${eloNorm}%;background:linear-gradient(90deg,${tc},${tc}88)"></div>
+      </div>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:${tc}">${ps}</span>
+    </div>
+  </td>
+  <td class="num">${trend}</td>
+</tr>`;
+  }).join("");
+}
+
+async function init() {
+  try {
+    const resp = await fetch("/api/elo");
+    const data = await resp.json();
+
+    if (data.error) throw new Error(data.error);
+
+    allRankings = data.rankings || [];
+
+    // Update page sub with top team
+    if (allRankings.length) {
+      const top = allRankings[0];
+      const topMeta = TEAM_META[top.team] || {};
+      document.getElementById("page-sub").textContent =
+        `${allRankings.length} teams ranked by Elo · #1: ${topMeta.name || top.team} (${top.elo.toFixed(0)})`;
+    }
+
+    renderTable();
+
+    document.getElementById("loading").style.opacity = "0";
+    setTimeout(() => document.getElementById("loading").style.display = "none", 500);
+  } catch(e) {
+    document.getElementById("loading").querySelector(".lo-status").textContent =
+      "Error: " + e.message + " — is the server running?";
+  }
+}
+
+// ── Hover Elo preview ─────────────────────────────────────────────────────────
+let _previewChart = null;
+let _previewTimeout = null;
+let _historyCache = {};   // {team: history[]} — fetched once, reused on re-hover
+
+async function previewChart(team, row) {
+  clearTimeout(_previewTimeout);
+  const panel = document.getElementById("elo-preview");
+  const meta  = TEAM_META[team] || {};
+  const tc    = readable(meta.color, meta.accent);
+  const rank  = allRankings.findIndex(r => r.team === team) + 1;
+
+  document.getElementById("preview-emoji").textContent = meta.emoji || "🏈";
+  document.getElementById("preview-name").textContent  = team;
+  document.getElementById("preview-name").style.color  = tc;
+  document.getElementById("preview-sub").textContent   = meta.name || "";
+  document.getElementById("preview-elo").textContent   =
+    (allRankings.find(r=>r.team===team)?.elo||"—").toFixed?.(0) || "—";
+  document.getElementById("preview-elo").style.color = tc;
+
+  // Position panel above the row
+  const rect = row.getBoundingClientRect();
+  const panelW = 380;
+  let left = rect.right + 12;
+  if (left + panelW > window.innerWidth - 16) left = rect.left - panelW - 12;
+  panel.style.left = `${left}px`;
+  panel.style.top  = `${Math.max(8, rect.top - 20)}px`;
+  panel.style.display = "block";
+
+  // Fetch and draw mini chart
+  if (!_historyCache[team]) {
+    try {
+      const resp = await fetch(`/api/elo/history?team=${team}`);
+      const data = await resp.json();
+      _historyCache[team] = data.history || [];
+    } catch(e) { _historyCache[team] = []; }
+  }
+
+  const history = _historyCache[team];
+  if (_previewChart) { _previewChart.destroy(); _previewChart = null; }
+
+  if (history.length) {
+    const ctx = document.getElementById("preview-chart").getContext("2d");
+    _previewChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: history.map(h => `S${h.season}W${h.week}`),
+        datasets: [{
+          data: history.map(h => h.elo),
+          borderColor: tc,
+          backgroundColor: tc + "18",
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.3,
+        }, {
+          data: Array(history.length).fill(1500),
+          borderColor: "rgba(255,255,255,0.12)",
+          borderWidth: 1,
+          borderDash: [3,3],
+          pointRadius: 0,
+          fill: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: { legend:{display:false}, tooltip:{enabled:false} },
+        scales: {
+          x: { display:false },
+          y: { ticks:{color:"rgba(255,255,255,0.3)",font:{size:9}}, grid:{color:"rgba(255,255,255,0.05)"} }
+        }
+      }
+    });
+  }
+}
+
+function closePreview() {
+  _previewTimeout = setTimeout(() => {
+    document.getElementById("elo-preview").style.display = "none";
+    if (_previewChart) { _previewChart.destroy(); _previewChart = null; }
+  }, 80);
+}
+
+// Keep old full chart modal function for direct calls
+let _eloChart = null;
+
+async function openTeamChart(team) {
+  const meta = TEAM_META[team] || { name: team, color:"#334", accent:"#334" };
+  const tc   = readable(meta.color, meta.accent);
+
+  document.getElementById("modal-team-name").textContent = meta.name || team;
+  document.getElementById("modal-team-name").style.color = tc;
+  document.getElementById("modal-team-sub").textContent =
+    `Elo trajectory · ${meta.div || ""} · Click outside to close`;
+  document.getElementById("modal-stats").innerHTML =
+    `<div style="color:var(--muted);font-size:0.75rem">Loading...</div>`;
+  document.getElementById("elo-modal").classList.add("open");
+
+  try {
+    const resp = await fetch(`/api/elo/history?team=${team}`);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    const history = data.history || [];
+    if (!history.length) {
+      document.getElementById("elo-chart").parentElement.innerHTML =
+        "<div style='color:var(--muted);text-align:center;padding:2rem'>No history available — retrain the model first</div>";
+      return;
+    }
+
+    // Group by season for x-axis labels
+    const labels = history.map(h => `S${h.season} W${h.week}`);
+    const values = history.map(h => h.elo);
+
+    // Season dividers
+    const seasons = [...new Set(history.map(h => h.season))].sort();
+    const seasonLines = seasons.map(s => {
+      const idx = history.findIndex(h => h.season === s);
+      return idx > 0 ? idx : null;
+    }).filter(x => x !== null);
+
+    if (_eloChart) { _eloChart.destroy(); _eloChart = null; }
+
+    const ctx = document.getElementById("elo-chart").getContext("2d");
+    _eloChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: `${team} Elo`,
+          data: values,
+          borderColor: tc,
+          backgroundColor: tc + "18",
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          fill: true,
+          tension: 0.3,
+        }, {
+          label: "League Average (1500)",
+          data: Array(values.length).fill(1500),
+          borderColor: "rgba(255,255,255,0.15)",
+          borderWidth: 1,
+          borderDash: [4, 4],
+          pointRadius: 0,
+          fill: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 600 },
+        interaction: {
+          mode: "index",
+          intersect: false,
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: "index",
+            intersect: false,
+            backgroundColor: "rgba(14,20,32,0.95)",
+            borderColor: "rgba(255,255,255,0.1)",
+            borderWidth: 1,
+            titleColor: "rgba(255,255,255,0.7)",
+            bodyColor: "#e8eef8",
+            titleFont: { family: "'JetBrains Mono',monospace", size: 10 },
+            bodyFont: { family: "'JetBrains Mono',monospace", size: 12, weight: "700" },
+            padding: 10,
+            callbacks: {
+              title: (items) => {
+                const h = history[items[0].dataIndex];
+                return `Season ${h.season} · Week ${h.week}`;
+              },
+              label: (item) => {
+                if (item.datasetIndex === 1) return "Avg: 1500";
+                const diff = item.raw - 1500;
+                const sign = diff >= 0 ? "+" : "";
+                return `Elo: ${item.raw.toFixed(0)}  (${sign}${diff.toFixed(0)} vs avg)`;
+              },
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: "rgba(255,255,255,0.25)",
+              maxTicksLimit: 10,
+              font: { size: 10 }
+            },
+            grid: { color: "rgba(255,255,255,0.04)" },
+          },
+          y: {
+            ticks: { color: "rgba(255,255,255,0.4)", font: { size: 10 } },
+            grid: { color: "rgba(255,255,255,0.05)" },
+          }
+        },
+        onHover: (event, elements, chart) => {
+          event.native.target.style.cursor = "crosshair";
+        },
+      }
+    });
+
+    // Stats summary
+    const maxElo = Math.max(...values);
+    const minElo = Math.min(...values);
+    const current = data.current_elo;
+    document.getElementById("modal-stats").innerHTML = `
+<div style="text-align:center">
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:${tc}">${current.toFixed(0)}</div>
+  <div style="font-size:0.6rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Current Elo</div>
+</div>
+<div style="text-align:center">
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--accent3)">${maxElo.toFixed(0)}</div>
+  <div style="font-size:0.6rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Peak Elo</div>
+</div>
+<div style="text-align:center">
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--accent2)">${minElo.toFixed(0)}</div>
+  <div style="font-size:0.6rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Lowest Elo</div>
+</div>
+<div style="text-align:center">
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--muted)">${history.length}</div>
+  <div style="font-size:0.6rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase">Games Tracked</div>
+</div>`;
+  } catch(e) {
+    document.getElementById("elo-chart").parentElement.innerHTML =
+      `<div style="color:var(--accent2);text-align:center;padding:2rem">Error: ${e.message}</div>`;
+  }
+}
+
+function closeModal() {
+  document.getElementById("elo-modal").classList.remove("open");
+}
+
+// Keyboard close
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+window.addEventListener("DOMContentLoaded", () => setTimeout(init, 200));
+</script>
+</body>
+</html>

@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFL Oracle — Team Rosters</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080b10;
+    --surface: #0e1420;
+    --surface2: #161d2e;
+    --surface3: #1d2640;
+    --border: rgba(255,255,255,0.07);
+    --accent: #00e5ff;
+    --accent2: #ff3b5c;
+    --accent3: #7fff6e;
+    --gold: #ffc940;
+    --text: #e8eef8;
+    --muted: #7a8aa0;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; overflow-x:hidden; }
+  body::before { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(0,229,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.025) 1px,transparent 1px); background-size:60px 60px; pointer-events:none; z-index:0; }
+
+  /* HEADER */
+  header { position:sticky; top:0; z-index:100; background:rgba(8,11,16,0.93); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); padding:0 2rem; }
+  .header-inner { max-width:1600px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; height:64px; }
+  .logo { display:flex; align-items:center; gap:12px; text-decoration:none; }
+  .logo-icon { width:36px; height:36px; background:linear-gradient(135deg,var(--accent),#0066ff); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+  .logo-text { font-family:'Bebas Neue',sans-serif; font-size:1.7rem; letter-spacing:2px; color:var(--text); line-height:1; }
+  .logo-sub { font-size:0.6rem; color:var(--accent); letter-spacing:3px; font-weight:700; text-transform:uppercase; }
+  .header-right { display:flex; align-items:center; gap:10px; }
+  .nav-btn { color:var(--muted); font-size:0.78rem; font-weight:600; text-decoration:none; letter-spacing:0.5px; padding:6px 14px; border:1px solid var(--border); border-radius:8px; transition:color 0.2s, border-color 0.2s; }
+  .nav-btn:hover { color:var(--accent); border-color:var(--accent); }
+  .nav-btn.active { color:var(--accent); border-color:rgba(0,229,255,0.4); background:rgba(0,229,255,0.06); }
+  .badge { padding:4px 12px; border-radius:20px; font-size:0.68rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+  .badge-live { background:rgba(255,59,92,0.1); color:var(--accent2); border:1px solid rgba(255,59,92,0.25); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
+
+  /* MAIN */
+  .main { max-width:1600px; margin:0 auto; padding:2rem; position:relative; z-index:1; }
+
+  /* CONTROLS */
+  .controls { display:flex; align-items:center; gap:1rem; margin-bottom:2rem; flex-wrap:wrap; }
+  .page-title { font-family:'Bebas Neue',sans-serif; font-size:2rem; letter-spacing:3px; color:var(--text); }
+  .page-sub { font-size:0.72rem; color:var(--muted); margin-top:2px; font-family:'JetBrains Mono',monospace; }
+  .controls-right { margin-left:auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  select, input[type=text] { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:8px 14px; border-radius:8px; font-family:'DM Sans',sans-serif; font-size:0.83rem; cursor:pointer; outline:none; transition:border-color 0.2s; }
+  select:focus, input:focus { border-color:var(--accent); }
+  select option { background:var(--surface2); }
+  input[type=text]::placeholder { color:var(--muted); }
+  .search-wrap { position:relative; }
+  .search-wrap input { padding-left:32px; min-width:220px; padding-right:36px; }
+  .search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:0.85rem; pointer-events:none; }
+  .search-go-btn { position:absolute; right:6px; top:50%; transform:translateY(-50%); background:var(--accent); border:none; color:#000; font-size:0.7rem; font-weight:700; padding:3px 8px; border-radius:5px; cursor:pointer; letter-spacing:0.5px; }
+  .search-go-btn:hover { opacity:0.85; }
+  .search-dropdown { position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--surface); border:1px solid var(--border); border-radius:8px; z-index:200; overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.4); display:none; }
+  .search-result { padding:8px 14px; font-size:0.8rem; cursor:pointer; display:flex; align-items:center; gap:10px; transition:background 0.1s; }
+  .search-result:hover, .search-result.active { background:var(--surface2); }
+  .search-result-team { font-family:'Bebas Neue',sans-serif; font-size:0.9rem; letter-spacing:1px; flex-shrink:0; }
+  .search-result-name { flex:1; }
+  .search-result-pos { font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:var(--accent); font-weight:700; }
+  .search-result-none { padding:10px 14px; font-size:0.78rem; color:var(--muted); font-style:italic; }
+  /* Fixed column widths so every table in detail view aligns */
+  .player-table { table-layout:fixed; }
+  .col-depth  { width:32px; }
+  .col-jersey { width:44px; }
+  .col-name   { width:auto; }
+  .col-pos    { width:58px; }
+  .col-age    { width:42px; }
+  .col-exp    { width:110px; }
+  .col-status { width:90px; }
+  .col-stat   { width:58px; }
+
+  /* TEAM GRID — all-teams view */
+  #teams-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(360px, 1fr)); gap:1.5rem; }
+
+  /* TEAM CARD (summary) */
+  .team-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; cursor:pointer; transition:transform 0.15s, box-shadow 0.15s; }
+  .team-card:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(0,0,0,0.45); }
+  .tc-header { padding:1rem 1.2rem; display:flex; align-items:center; gap:14px; border-bottom:1px solid var(--border); }
+  .tc-logo { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0; }
+  .tc-abbr { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; letter-spacing:1px; line-height:1; }
+  .tc-name { font-size:0.72rem; color:var(--muted); margin-top:1px; }
+  .tc-conf { margin-left:auto; font-size:0.6rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+  .tc-body { padding:0.9rem 1.2rem; display:flex; flex-direction:column; gap:6px; }
+  .tc-stat-row { display:flex; justify-content:space-between; align-items:center; }
+  .tc-stat-label { font-size:0.68rem; color:var(--muted); letter-spacing:0.5px; }
+  .tc-stat-val { font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:var(--text); font-weight:700; }
+  .tc-stat-val.good { color:var(--accent3); }
+  .tc-stat-val.great { color:var(--gold); }
+  .tc-players { padding:0 1.2rem 1rem; display:flex; gap:6px; flex-wrap:wrap; }
+  .mini-chip { background:var(--surface2); border:1px solid var(--border); border-radius:20px; padding:3px 9px; font-size:0.65rem; display:flex; align-items:center; gap:4px; }
+  .mc-pos { font-size:0.58rem; font-weight:700; letter-spacing:1px; color:var(--accent); font-family:'JetBrains Mono',monospace; }
+  .tc-footer { padding:0.7rem 1.2rem; background:var(--surface2); font-size:0.62rem; color:var(--muted); letter-spacing:1px; text-align:center; text-transform:uppercase; border-top:1px solid var(--border); }
+
+  /* SINGLE TEAM DETAIL VIEW */
+  #team-detail { display:none; }
+  .back-btn { display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-size:0.8rem; font-weight:600; cursor:pointer; padding:7px 14px; border:1px solid var(--border); border-radius:8px; margin-bottom:1.5rem; transition:color 0.2s,border-color 0.2s; user-select:none; }
+  .back-btn:hover { color:var(--accent); border-color:var(--accent); }
+
+  .team-hero { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:1.5rem 2rem; margin-bottom:2rem; display:flex; align-items:center; gap:2rem; flex-wrap:wrap; }
+  .hero-logo { font-size:3.5rem; line-height:1; }
+  .hero-abbr { font-family:'Bebas Neue',sans-serif; font-size:3.5rem; letter-spacing:2px; line-height:1; }
+  .hero-name { font-size:1rem; color:var(--muted); margin-top:4px; }
+  .hero-conf { font-size:0.65rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--accent); margin-top:2px; }
+  .hero-stats { margin-left:auto; display:flex; gap:2rem; flex-wrap:wrap; }
+  .hs-item { text-align:center; }
+  .hs-val { font-family:'Bebas Neue',sans-serif; font-size:1.8rem; color:var(--accent); line-height:1; }
+  .hs-label { font-size:0.58rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-top:3px; }
+
+  /* POSITION GROUP */
+  .pos-group { margin-bottom:2rem; }
+  .pg-title { font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:2px; color:var(--text); margin-bottom:0.8rem; padding-bottom:0.5rem; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .pg-count { font-size:0.68rem; font-weight:700; color:var(--muted); font-family:'JetBrains Mono',monospace; background:var(--surface2); padding:2px 8px; border-radius:10px; }
+  /* Position divider row inside the shared table */
+  .pos-divider td { background:var(--surface2); padding:4px 12px; font-family:'Bebas Neue',sans-serif; font-size:0.75rem; letter-spacing:2px; color:var(--muted); border-top:2px solid var(--border); }
+  .pos-divider.first td { border-top:none; }
+
+  /* PLAYER TABLE */
+  .player-table { width:100%; border-collapse:collapse; }
+  .player-table thead tr { background:var(--surface2); }
+  .player-table th { padding:8px 12px; font-size:0.58rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--muted); text-align:left; white-space:nowrap; }
+  .player-table th.num { text-align:right; }
+  .player-table tbody tr { border-bottom:1px solid var(--border); transition:background 0.12s; }
+  .player-table tbody tr:hover { background:var(--surface2); }
+  .player-table td { padding:9px 12px; font-size:0.8rem; vertical-align:middle; }
+  .player-table td.num { text-align:right; font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:var(--muted); }
+  .player-table td.num.val { color:var(--text); }
+  .player-table td.num.good { color:var(--accent3); }
+  .player-table td.num.great { color:var(--gold); }
+
+  .depth-badge { display:inline-block; width:20px; height:20px; border-radius:4px; font-family:'JetBrains Mono',monospace; font-size:0.65rem; font-weight:700; text-align:center; line-height:20px; flex-shrink:0; }
+  .depth-1    { background:var(--gold); color:#000; }
+  .depth-2    { background:var(--surface3); color:var(--text); border:1px solid var(--border); }
+  .depth-3    { background:transparent; color:var(--muted); border:1px solid var(--border); }
+  .depth-none { background:transparent; color:var(--surface3); border:1px solid var(--surface3); font-size:0.8rem; }
+
+  .pos-pill { display:inline-block; padding:2px 7px; border-radius:4px; font-family:'JetBrains Mono',monospace; font-size:0.62rem; font-weight:700; letter-spacing:0.5px; background:rgba(0,229,255,0.08); color:var(--accent); border:1px solid rgba(0,229,255,0.2); }
+
+  .jersey { font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:var(--muted); }
+
+  .exp-bar { display:inline-flex; align-items:center; gap:5px; }
+  .exp-dots { display:flex; gap:2px; }
+  .exp-dot { width:5px; height:5px; border-radius:50%; background:var(--surface3); }
+  .exp-dot.filled { background:var(--accent); }
+
+  .status-badge { font-size:0.58rem; font-weight:700; letter-spacing:1px; padding:2px 6px; border-radius:4px; white-space:nowrap; }
+  .status-IR  { background:rgba(255,59,92,0.15);  color:var(--accent2); border:1px solid rgba(255,59,92,0.3); }
+  .status-Q   { background:rgba(255,201,64,0.12); color:var(--gold);    border:1px solid rgba(255,201,64,0.3); }
+  .status-Out { background:rgba(255,59,92,0.1);   color:var(--accent2); }
+  .status-Doubtful { background:rgba(255,59,92,0.08); color:var(--accent2); }
+  .status-PUP { background:rgba(255,201,64,0.1);  color:var(--gold); }
+  .status-SUS { background:rgba(255,255,255,0.05); color:var(--muted); }
+  .source-badge { font-size:0.58rem; padding:2px 8px; border-radius:20px; font-family:'JetBrains Mono',monospace; font-weight:700; letter-spacing:1px; }
+  .source-sleeper { background:rgba(127,255,110,0.1); color:var(--accent3); border:1px solid rgba(127,255,110,0.2); }
+  .source-nfldata { background:rgba(0,229,255,0.08); color:var(--muted); border:1px solid var(--border); }
+
+  /* EMPTY / LOADING */
+  .empty { text-align:center; padding:4rem; color:var(--muted); }
+  .empty-icon { font-size:2.5rem; margin-bottom:1rem; opacity:0.35; }
+
+  .loading-overlay { position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1rem; transition:opacity 0.5s; }
+  .lo-title { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:4px; color:var(--accent); }
+  .lo-bar { width:280px; height:3px; background:var(--surface2); border-radius:10px; overflow:hidden; position:relative; }
+  .lo-fill { position:absolute; left:-100%; top:0; height:100%; width:60%; background:linear-gradient(90deg,transparent,var(--accent),transparent); animation:sweep 1.2s ease-in-out infinite; }
+  @keyframes sweep { from{left:-100%} to{left:100%} }
+  .lo-status { font-size:0.72rem; color:var(--muted); letter-spacing:2px; font-family:'JetBrains Mono',monospace; }
+
+  footer { position:relative; z-index:1; border-top:1px solid var(--border); padding:1.2rem 2rem; margin-top:3rem; text-align:center; font-size:0.7rem; color:var(--muted); }
+  .fa { color:var(--accent); font-weight:600; }
+
+  @media(max-width:900px) { #teams-grid { grid-template-columns:1fr 1fr; } .hero-stats { gap:1rem; } }
+  @media(max-width:600px) { #teams-grid { grid-template-columns:1fr; } .main { padding:1rem; } .player-table .hide-mobile { display:none; } }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+  <div class="lo-title">TEAM ROSTERS</div>
+  <div style="color:var(--muted);font-size:0.78rem;letter-spacing:3px;font-family:'JetBrains Mono',monospace">LOADING DEPTH CHARTS</div>
+  <div class="lo-bar"><div class="lo-fill"></div></div>
+  <div class="lo-status" id="lo-status">Fetching roster data...</div>
+</div>
+
+<header>
+  <div class="header-inner">
+    <a class="logo" href="/">
+      <div class="logo-icon">🏈</div>
+      <div>
+        <div class="logo-text">NFL Oracle</div>
+        
+      </div>
+    </a>
+    <div class="header-right">
+      <a href="/" class="nav-btn">🏆 Predictions</a>
+      <a href="/rosters" class="nav-btn active">📋 Rosters</a>
+      <a href="/power-rankings" class="nav-btn">⚡ Rankings</a>
+      <div style="position:relative">
+        <input id="team-jump" placeholder="Go to team..." autocomplete="off"
+          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);
+                 padding:5px 10px;border-radius:7px;font-size:0.75rem;width:120px;outline:none;
+                 font-family:'DM Sans',sans-serif"
+          oninput="showTeamJump(this.value)" onblur="setTimeout(()=>hideTeamJump(),200)"
+          onfocus="showTeamJump(this.value)">
+        <div id="team-jump-list" style="display:none;position:absolute;top:34px;right:0;
+          background:var(--surface);border:1px solid var(--border);border-radius:8px;
+          z-index:200;min-width:160px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,0.4)">
+        </div>
+      </div>
+      <span class="badge badge-live" id="season-badge">NFL 2025</span>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- Controls -->
+  <div class="controls">
+    <div>
+      <div class="page-title">Team Rosters</div>
+      <div class="page-sub" id="page-sub">Loading...</div>
+    </div>
+    <div class="controls-right">
+      <div class="search-wrap" id="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="player-search" placeholder="Search player name..."
+               oninput="handleSearchInput()" onkeydown="handleSearchKey(event)"
+               autocomplete="off">
+        <button class="search-go-btn" onclick="commitSearch()">Go</button>
+        <div class="search-dropdown" id="search-dropdown"></div>
+      </div>
+      <select id="conf-filter" onchange="applyFilters()">
+        <option value="ALL">All Conferences</option>
+        <option value="AFC">AFC</option>
+        <option value="NFC">NFC</option>
+      </select>
+      <select id="div-filter" onchange="applyFilters()">
+        <option value="ALL">All Divisions</option>
+        <option value="AFC East">AFC East</option>
+        <option value="AFC North">AFC North</option>
+        <option value="AFC South">AFC South</option>
+        <option value="AFC West">AFC West</option>
+        <option value="NFC East">NFC East</option>
+        <option value="NFC North">NFC North</option>
+        <option value="NFC South">NFC South</option>
+        <option value="NFC West">NFC West</option>
+      </select>
+      <select id="pos-filter" onchange="applyFilters()">
+        <option value="ALL">All Positions</option>
+        <option value="QB">QB</option>
+        <option value="RB">RB</option>
+        <option value="WR">WR</option>
+        <option value="TE">TE</option>
+        <option value="OL">O-Line</option>
+        <option value="DL">D-Line</option>
+        <option value="LB">Linebackers</option>
+        <option value="DB">Secondary</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- All teams grid -->
+  <div id="teams-grid"></div>
+
+  <!-- Single team detail -->
+  <div id="team-detail">
+    <div class="back-btn" onclick="showAllTeams()">← Back to all teams</div>
+    <div id="detail-content"></div>
+  </div>
+
+</main>
+
+<footer>
+  <span class="fa">NFL Oracle</span> · Roster data from <span class="fa">nfl_data_py</span> (nflverse) ·
+  Season stats via <span class="fa">nfl_data_py seasonal data</span> · Depth chart order from official NFL depth charts
+</footer>
+
+<script>
+// ── Team metadata ────────────────────────────────────────────────────────────
+const TEAM_META = {
+  // color = primary brand color, accent = secondary (used when primary is too dark to read)
+  ARI:{name:"Arizona Cardinals",  conf:"NFC",div:"NFC West",  color:"#97233F",accent:"#FFB612",emoji:"🔴"},
+  ATL:{name:"Atlanta Falcons",    conf:"NFC",div:"NFC South", color:"#A71930",accent:"#A5ACAF",emoji:"🔴"},
+  BAL:{name:"Baltimore Ravens",   conf:"AFC",div:"AFC North", color:"#9E7C0C",accent:"#9E7C0C",emoji:"🟣"},
+  BUF:{name:"Buffalo Bills",      conf:"AFC",div:"AFC East",  color:"#C60C30",accent:"#00338D",emoji:"🔵"},
+  CAR:{name:"Carolina Panthers",  conf:"NFC",div:"NFC South", color:"#0085CA",accent:"#0085CA",emoji:"🔵"},
+  CHI:{name:"Chicago Bears",      conf:"NFC",div:"NFC North", color:"#C83803",accent:"#C83803",emoji:"🟠"},
+  CIN:{name:"Cincinnati Bengals", conf:"AFC",div:"AFC North", color:"#FB4F14",accent:"#FB4F14",emoji:"🟠"},
+  CLE:{name:"Cleveland Browns",   conf:"AFC",div:"AFC North", color:"#FF3C00",accent:"#FF3C00",emoji:"🟠"},
+  DAL:{name:"Dallas Cowboys",     conf:"NFC",div:"NFC East",  color:"#869397",accent:"#869397",emoji:"🔵"},
+  DEN:{name:"Denver Broncos",     conf:"AFC",div:"AFC West",  color:"#FB4F14",accent:"#FB4F14",emoji:"🟠"},
+  DET:{name:"Detroit Lions",      conf:"NFC",div:"NFC North", color:"#0076B6",accent:"#0076B6",emoji:"🔵"},
+  GB: {name:"Green Bay Packers",  conf:"NFC",div:"NFC North", color:"#FFB612",accent:"#FFB612",emoji:"🟡"},
+  HOU:{name:"Houston Texans",     conf:"AFC",div:"AFC South", color:"#03F",   accent:"#A71930",emoji:"🔵"},
+  IND:{name:"Indianapolis Colts", conf:"AFC",div:"AFC South", color:"#A2AAAD",accent:"#A2AAAD",emoji:"🔵"},
+  JAX:{name:"Jacksonville Jaguars",conf:"AFC",div:"AFC South",color:"#9F792C",accent:"#9F792C",emoji:"🟡"},
+  KC: {name:"Kansas City Chiefs", conf:"AFC",div:"AFC West",  color:"#E31837",accent:"#FFB81C",emoji:"🔴"},
+  LV: {name:"Las Vegas Raiders",  conf:"AFC",div:"AFC West",  color:"#A5ACAF",accent:"#A5ACAF",emoji:"⚫"},
+  LAC:{name:"Los Angeles Chargers",conf:"AFC",div:"AFC West", color:"#0080C6",accent:"#FFC20E",emoji:"🔵"},
+  LAR:{name:"Los Angeles Rams",   conf:"NFC",div:"NFC West",  color:"#FFA300",accent:"#FFA300",emoji:"🔵"},
+  LA: {name:"Los Angeles Rams",   conf:"NFC",div:"NFC West",  color:"#FFA300",accent:"#FFA300",emoji:"🔵"},
+  MIA:{name:"Miami Dolphins",     conf:"AFC",div:"AFC East",  color:"#008E97",accent:"#FC4C02",emoji:"🟠"},
+  MIN:{name:"Minnesota Vikings",  conf:"NFC",div:"NFC North", color:"#FFC62F",accent:"#FFC62F",emoji:"🟣"},
+  NE: {name:"New England Patriots",conf:"AFC",div:"AFC East", color:"#C60C30",accent:"#C60C30",emoji:"🔵"},
+  NO: {name:"New Orleans Saints", conf:"NFC",div:"NFC South", color:"#D3BC8D",accent:"#D3BC8D",emoji:"⚫"},
+  NYG:{name:"New York Giants",    conf:"NFC",div:"NFC East",  color:"#A71930",accent:"#A71930",emoji:"🔵"},
+  NYJ:{name:"New York Jets",      conf:"AFC",div:"AFC East",  color:"#125740",accent:"#FFFFFF",emoji:"🟢"},
+  PHI:{name:"Philadelphia Eagles",conf:"NFC",div:"NFC East",  color:"#A5ACAF",accent:"#A5ACAF",emoji:"🟢"},
+  PIT:{name:"Pittsburgh Steelers",conf:"AFC",div:"AFC North", color:"#FFB612",accent:"#FFB612",emoji:"🟡"},
+  SF: {name:"San Francisco 49ers",conf:"NFC",div:"NFC West",  color:"#AA0000",accent:"#B3995D",emoji:"🔴"},
+  SEA:{name:"Seattle Seahawks",   conf:"NFC",div:"NFC West",  color:"#69BE28",accent:"#69BE28",emoji:"🟢"},
+  TB: {name:"Tampa Bay Buccaneers",conf:"NFC",div:"NFC South",color:"#D50A0A",accent:"#FF7900",emoji:"🔴"},
+  TEN:{name:"Tennessee Titans",   conf:"AFC",div:"AFC South", color:"#4B92DB",accent:"#4B92DB",emoji:"🔵"},
+  WAS:{name:"Washington Commanders",conf:"NFC",div:"NFC East",color:"#FFB612",accent:"#FFB612",emoji:"🟡"},
+};
+
+const POS_GROUPS = {
+  "Offense":        ["QB","RB","FB","WR","TE"],
+  "O-Line":         ["T","G","C","OT","OG","OL","LT","RT","LG","RG"],
+  "D-Line":         ["DE","DT","NT","DL","LE","RE"],
+  "Linebackers":    ["OLB","ILB","MLB","LB","LOLB","ROLB","LILB","RILB"],
+  "Secondary":      ["CB","S","SS","FS","DB","LCB","RCB","SAF"],
+  "Special Teams":  ["K","P","LS","KR","PR"],
+};
+
+// Normalize raw ESPN position codes to canonical group keys
+const POS_NORMALIZE = {
+  "LT":"T","RT":"T","OT":"T","LG":"G","RG":"G","OG":"G",
+  "LE":"DE","RE":"DE","DL":"DE",
+  "LOLB":"OLB","ROLB":"OLB","LILB":"ILB","RILB":"ILB","WILB":"ILB",
+  "LCB":"CB","RCB":"CB","SAF":"S",
+  "KR":"K","PR":"P",
+};
+
+function normalizePos(p) {
+  return POS_NORMALIZE[p] || p;
+}
+
+const POS_FILTER_MAP = {
+  "OL": ["T","G","C"],
+  "DL": ["DE","DT","NT"],
+  "LB": ["OLB","ILB","MLB","LB"],
+  "DB": ["CB","S","SS","FS","DB"],
+};
+
+// ── Color contrast helper ─────────────────────────────────────────────────────
+// Returns the luminance of a hex color (0=black, 1=white)
+function _luminance(hex) {
+  const c = hex.replace("#","");
+  const r = parseInt(c.slice(0,2),16)/255;
+  const g = parseInt(c.slice(2,4),16)/255;
+  const b = parseInt(c.slice(4,6),16)/255;
+  const toLinear = v => v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4);
+  return 0.2126*toLinear(r) + 0.7152*toLinear(g) + 0.0722*toLinear(b);
+}
+
+// Returns a display color guaranteed to be visible on the dark UI background.
+// If the team color is too dark (luminance < 0.08), returns the accent color
+// for that team instead, or lightens the original.
+function readable(hex, accent) {
+  if (!hex || hex.length < 6) return "var(--accent)";
+  try {
+    const lum = _luminance(hex);
+    if (lum >= 0.06) return hex;          // bright enough — use as-is
+    if (accent) return accent;            // use secondary color if provided
+    // Lighten the original hex by blending toward white
+    const c = hex.replace("#","");
+    const blend = (v) => Math.round(parseInt(v,16) + (255 - parseInt(v,16)) * 0.55).toString(16).padStart(2,"0");
+    return "#" + blend(c.slice(0,2)) + blend(c.slice(2,4)) + blend(c.slice(4,6));
+  } catch(e) { return "var(--accent)"; }
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let allRosters = {};    // { KC: { season, team, players:[...] } }
+let currentTeam = null;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmt(v, decimals=0) {
+  if (v == null || v === 0) return "—";
+  return parseFloat(v).toFixed(decimals);
+}
+function fmtBig(v) {
+  const n = parseInt(v)||0;
+  return n > 0 ? n.toLocaleString() : "—";
+}
+function statClass(v, thresholds) {
+  const n = parseFloat(v)||0;
+  if (n >= thresholds[1]) return "great";
+  if (n >= thresholds[0]) return "good";
+  return "";
+}
+function expDots(years) {
+  const max = 10;
+  const filled = Math.min(years, max);
+  return `<div class="exp-dots">${Array.from({length:max},(_,i)=>
+    `<div class="exp-dot${i < filled ? ' filled' : ''}"></div>`
+  ).join("")}</div>`;
+}
+function statusBadge(status, injuryBody) {
+  if (!status) return "";
+  const cls = `status-${status.replace(/[^a-zA-Z]/g,"")}`;
+  const tooltip = injuryBody ? ` title="${injuryBody}"` : "";
+  return `<span class="status-badge ${cls}"${tooltip}>${status}</span>`;
+}
+
+function dataSourceBadge(player) {
+  const isSleeper = !!(player.sleeper_id);
+  return isSleeper
+    ? `<span class="source-badge source-sleeper" title="Data from Sleeper API">Sleeper</span>`
+    : `<span class="source-badge source-nfldata" title="Data from nfl_data_py">nflverse</span>`;
+}
+
+// ── Stats columns per position ───────────────────────────────────────────────
+function getStatColumns(pos) {
+  const p = normalizePos(pos);
+  if (p === "QB") return [
+    {key:"completions",    label:"CMP",  thresh:[200,350]},
+    {key:"attempts",       label:"ATT",  thresh:[300,500]},
+    {key:"passing_yards",  label:"YDS",  thresh:[3000,4000]},
+    {key:"passing_tds",    label:"TD",   thresh:[20,30]},
+    {key:"interceptions",  label:"INT",  thresh:[-1,-1], invert:true},
+  ];
+  if (p === "RB" || p === "FB") return [
+    {key:"carries",        label:"CAR",  thresh:[100,200]},
+    {key:"rushing_yards",  label:"YDS",  thresh:[500,1000]},
+    {key:"rushing_tds",    label:"TD",   thresh:[5,10]},
+    {key:"receptions",     label:"REC",  thresh:[20,40]},
+    {key:"receiving_yards",label:"REC Y",thresh:[150,300]},
+  ];
+  if (p === "WR" || p === "TE") return [
+    {key:"targets",        label:"TGT",  thresh:[40,80]},
+    {key:"receptions",     label:"REC",  thresh:[40,70]},
+    {key:"receiving_yards",label:"YDS",  thresh:[500,1000]},
+    {key:"receiving_tds",  label:"TD",   thresh:[4,8]},
+  ];
+  return [];
+}
+
+// ── Build team summary card ───────────────────────────────────────────────────
+function buildTeamCard(abbr, rosterData) {
+  const meta = TEAM_META[abbr] || { name:abbr, conf:"", div:"", color:"#334", emoji:"🏈" };
+  const players = rosterData.players || [];
+  const season = rosterData.season || "";
+
+  // Count players by position group (normalize positions first)
+  players.forEach(p => { if (!p.pos_display) p.pos_display = normalizePos(p.position); });
+  const offensePlayers = players.filter(p => ["QB","RB","FB","WR","TE"].includes(p.pos_display));
+  const qbs = players.filter(p => p.pos_display === "QB");
+  const starter = qbs.find(p => p.depth_order === 1);
+
+  // Aggregate team passing + rushing
+  const totalPassYds = players.reduce((s,p) => s + (p.stats?.passing_yards||0), 0);
+  const totalRushYds = players.reduce((s,p) => s + (p.stats?.rushing_yards||0), 0);
+  const totalRecYds  = players.reduce((s,p) => s + (p.stats?.receiving_yards||0), 0);
+  const totalTDs     = players.reduce((s,p) => s + (p.stats?.passing_tds||0) + (p.stats?.rushing_tds||0) + (p.stats?.receiving_tds||0), 0);
+
+  // Key players for chips
+  const keyPlayers = offensePlayers.filter(p => p.depth_order === 1).slice(0, 3);
+
+  const tc = readable(meta.color, meta.accent);
+  return `<div class="team-card" onclick="showTeamDetail('${abbr}')">
+  <div class="tc-header">
+    <div class="tc-logo" style="background:${tc}22;border:2px solid ${tc}55">${meta.emoji}</div>
+    <div>
+      <div class="tc-abbr" style="color:${tc}">${abbr}</div>
+      <div class="tc-name">${meta.name}</div>
+    </div>
+    <div class="tc-conf">${meta.div}</div>
+  </div>
+  <div class="tc-body">
+    <div class="tc-stat-row">
+      <span class="tc-stat-label">Starting QB</span>
+      <span class="tc-stat-val">${starter ? starter.name : "—"}</span>
+    </div>
+    ${totalPassYds > 0 ? `
+    <div class="tc-stat-row">
+      <span class="tc-stat-label">Pass Yards</span>
+      <span class="tc-stat-val ${statClass(totalPassYds,[3000,4000])}">${fmtBig(totalPassYds)}</span>
+    </div>
+    <div class="tc-stat-row">
+      <span class="tc-stat-label">Rush Yards</span>
+      <span class="tc-stat-val ${statClass(totalRushYds,[1200,1800])}">${fmtBig(totalRushYds)}</span>
+    </div>
+    <div class="tc-stat-row">
+      <span class="tc-stat-label">Total TDs</span>
+      <span class="tc-stat-val ${statClass(totalTDs,[25,40])}">${totalTDs||"—"}</span>
+    </div>` : `
+    <div class="tc-stat-row">
+      <span class="tc-stat-label" style="font-style:italic">Season stats available in September</span>
+    </div>`}
+    <div class="tc-stat-row">
+      <span class="tc-stat-label">Roster Size</span>
+      <span class="tc-stat-val">${players.length}</span>
+    </div>
+  </div>
+  <div class="tc-players">
+    ${keyPlayers.map(p=>`<div class="mini-chip"><span class="mc-pos">${p.position}</span><span>${p.name.split(" ").pop()}</span>${p.jersey?`<span style="color:var(--muted);font-size:0.58rem">#${p.jersey}</span>`:""}</div>`).join("")}
+  </div>
+  <div class="tc-footer">Click to view full depth chart →</div>
+</div>`;
+}
+
+// ── Build full team detail view ───────────────────────────────────────────────
+function buildTeamDetail(abbr) {
+  const meta = TEAM_META[abbr] || { name:abbr, conf:"", div:"", color:"#334", emoji:"🏈" };
+  const rosterData = allRosters[abbr];
+  if (!rosterData) return `<div class="empty"><div class="empty-icon">❓</div><div>No roster data for ${abbr}</div></div>`;
+
+  const players = rosterData.players || [];
+  const season = rosterData.season || "";
+
+  const totalPassYds = players.reduce((s,p) => s + (p.stats?.passing_yards||0), 0);
+  const totalRushYds = players.reduce((s,p) => s + (p.stats?.rushing_yards||0), 0);
+  const totalTDs     = players.reduce((s,p) => s + (p.stats?.passing_tds||0)+(p.stats?.rushing_tds||0)+(p.stats?.receiving_tds||0), 0);
+  const totalINT     = players.reduce((s,p) => s + (p.stats?.interceptions||0), 0);
+
+  const tc = readable(meta.color, meta.accent);
+  let html = `
+<div class="team-hero" style="border-color:${tc}44;border-left:4px solid ${tc}">
+  <div class="hero-logo">${meta.emoji}</div>
+  <div>
+    <div class="hero-abbr" style="color:${tc}">${abbr}</div>
+    <div class="hero-name">${meta.name}</div>
+    <div class="hero-conf">${meta.div} · ${season} Season</div>
+  </div>
+  <div class="hero-stats">
+    ${totalPassYds > 0 ? `
+    <div class="hs-item">
+      <div class="hs-val" style="color:${tc}">${fmtBig(totalPassYds)}</div>
+      <div class="hs-label">Pass Yds</div>
+    </div>
+    <div class="hs-item">
+      <div class="hs-val" style="color:${tc}">${fmtBig(totalRushYds)}</div>
+      <div class="hs-label">Rush Yds</div>
+    </div>
+    <div class="hs-item">
+      <div class="hs-val" style="color:${tc}">${totalTDs||"—"}</div>
+      <div class="hs-label">Total TDs</div>
+    </div>` : `
+    <div class="hs-item">
+      <div class="hs-val" style="color:var(--muted);font-size:1rem">Off-Season</div>
+      <div class="hs-label">Stats unavailable</div>
+    </div>`}
+    <div class="hs-item">
+      <div class="hs-val" style="color:${tc}">${players.length}</div>
+      <div class="hs-label">On Roster</div>
+    </div>
+  </div>
+</div>`;
+
+  // Normalize positions on players first
+  players.forEach(p => { p.pos_display = normalizePos(p.position); });
+
+  // Build position groups
+  for (const [groupName, positions] of Object.entries(POS_GROUPS)) {
+    // Match against normalized position
+    const groupPlayers = players.filter(p => positions.includes(p.pos_display));
+    if (!groupPlayers.length) continue;
+
+    // Determine stat columns from first offensive position in group
+    const offPos = positions.find(p => ["QB","RB","FB","WR","TE"].includes(p));
+    const statCols = offPos ? getStatColumns(offPos) : [];
+
+    // Group by normalized position within the group
+    const byPos = {};
+    for (const p of groupPlayers) {
+      const key = p.pos_display;
+      if (!byPos[key]) byPos[key] = [];
+      byPos[key].push(p);
+    }
+
+    html += `<div class="pos-group">
+<div class="pg-title">${groupName} <span class="pg-count">${groupPlayers.length}</span></div>`;
+
+    // Determine stat columns for this group (use first offensive pos if present)
+    const firstOffPos = positions.find(p => ["QB","RB","FB","WR","TE"].includes(p));
+    const groupSc = firstOffPos ? getStatColumns(firstOffPos) : [];
+    const groupHasAnyStats = groupPlayers.some(p => groupSc.some(c => (p.stats?.[c.key]||0) > 0));
+    // During off-season stats object will be empty for all players
+    const anyPlayerHasStats = groupPlayers.some(p => p.stats && Object.keys(p.stats).length > 0);
+    const showStats = groupSc.length > 0 && groupHasAnyStats && anyPlayerHasStats;
+
+    // ONE table per group — all positions share the same column layout so they align
+    html += `<table class="player-table" style="margin-bottom:1.5rem">
+<colgroup>
+  <col class="col-depth">
+  <col class="col-jersey">
+  <col class="col-name">
+  <col class="col-pos">
+  <col class="col-age hide-mobile">
+  <col class="col-exp hide-mobile">
+  <col class="col-status hide-mobile">
+  ${showStats ? groupSc.map(()=>`<col class="col-stat">`).join("") : ""}
+</colgroup>
+<thead><tr>
+  <th class="col-depth">#</th>
+  <th class="col-jersey">No.</th>
+  <th class="col-name">Name</th>
+  <th class="col-pos">Pos</th>
+  <th class="col-age hide-mobile" style="text-align:center">Age</th>
+  <th class="col-exp hide-mobile">Exp</th>
+  <th class="col-status hide-mobile">Status</th>
+  ${showStats ? groupSc.map(c=>`<th class="num col-stat">${c.label}</th>`).join("") : ""}
+</tr></thead>
+<tbody>`;
+
+    // Total stat columns (for colspan in divider rows)
+    const totalCols = 7 + (showStats ? groupSc.length : 0);
+
+    // Render players grouped by position, inserting a divider row between positions
+    let lastPos = null;
+    for (const p of groupPlayers) {
+      const pos = p.pos_display || normalizePos(p.position);
+      const depthNum   = (p.depth_order && p.depth_order < 99) ? p.depth_order : null;
+      const depthClass  = depthNum === 1 ? "depth-1" : depthNum === 2 ? "depth-2" : depthNum ? "depth-3" : "depth-none";
+
+      // Insert divider row when position changes
+      if (pos !== lastPos) {
+        const isFirst = lastPos === null;
+        html += `<tr class="pos-divider${isFirst ? " first" : ""}">
+  <td colspan="${totalCols}">${pos}</td>
+</tr>`;
+        lastPos = pos;
+      }
+
+      const statCells = showStats ? groupSc.map(c => {
+        const v = p.stats?.[c.key] || 0;
+        const display = v > 0 ? (Number.isInteger(v) ? v.toLocaleString() : parseFloat(v).toFixed(0)) : "—";
+        let cls = "num";
+        if (v > 0) {
+          if (c.invert) { cls += v <= 5 ? " good" : ""; }
+          else { cls += v >= c.thresh[1] ? " great" : v >= c.thresh[0] ? " good" : " val"; }
+        }
+        return `<td class="${cls}">${display}</td>`;
+      }).join("") : "";
+
+      html += `<tr>
+  <td><span class="depth-badge ${depthClass}">${depthNum !== null ? depthNum : "—"}</span></td>
+  <td><span class="jersey">${p.jersey ? "#"+p.jersey : "—"}</span></td>
+  <td>
+    <strong>${p.name}</strong>
+    ${p.injury_body ? `<span style="font-size:0.6rem;color:var(--muted);margin-left:5px">(${p.injury_body})</span>` : ""}
+  </td>
+  <td><span class="pos-pill">${pos}</span></td>
+  <td class="hide-mobile" style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;text-align:center;color:var(--muted)">${p.age || "—"}</td>
+  <td class="hide-mobile"><div class="exp-bar">${expDots(p.years_exp)}<span style="font-size:0.62rem;color:var(--muted);font-family:'JetBrains Mono',monospace">${p.years_exp > 0 ? p.years_exp+"yr" : "R"}</span></div></td>
+  <td class="hide-mobile">${statusBadge(p.status, p.injury_body)}</td>
+  ${statCells}
+</tr>`;
+    }
+
+    html += `</tbody></table>`;
+
+    html += `</div>`;
+  }
+
+  return html;
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showTeamDetail(abbr) {
+  currentTeam = abbr;
+  document.getElementById("teams-grid").style.display = "none";
+  const det = document.getElementById("team-detail");
+  det.style.display = "block";
+  document.getElementById("detail-content").innerHTML = buildTeamDetail(abbr);
+  document.querySelector(".controls-right").style.display = "none";
+  window.scrollTo(0, 0);
+}
+
+function showAllTeams() {
+  currentTeam = null;
+  document.getElementById("teams-grid").style.display = "grid";
+  document.getElementById("team-detail").style.display = "none";
+  document.querySelector(".controls-right").style.display = "flex";
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+function applyFilters() {
+  const conf = document.getElementById("conf-filter").value;
+  const div  = document.getElementById("div-filter").value;
+  const posF = document.getElementById("pos-filter").value;
+
+  const grid = document.getElementById("teams-grid");
+  const cards = grid.querySelectorAll(".team-card");
+  let visible = 0;
+
+  cards.forEach(card => {
+    const abbr = card.getAttribute("data-abbr");
+    const meta = TEAM_META[abbr] || {};
+    let show = true;
+
+    if (conf !== "ALL" && meta.conf !== conf) show = false;
+    if (div  !== "ALL" && meta.div  !== div)  show = false;
+
+    if (posF !== "ALL" && show) {
+      const positions = POS_FILTER_MAP[posF] || [posF];
+      const hasPos = (allRosters[abbr]?.players||[]).some(p =>
+        positions.includes(normalizePos(p.position))
+      );
+      if (!hasPos) show = false;
+    }
+
+    card.style.display = show ? "" : "none";
+    if (show) visible++;
+  });
+
+  document.getElementById("page-sub").innerHTML =
+    `Showing ${visible} teams &middot; ${Object.values(allRosters).reduce((s,r)=>s+(r.players?.length||0),0)} total players`;
+}
+
+// ── Search autocomplete ────────────────────────────────────────────────────────
+let _searchResults = [];    // [{name, team, position}] sorted by similarity
+let _activeResult  = -1;    // keyboard-highlighted index
+
+// Fuzzy score: 0 = no match, higher = better match
+function _searchScore(query, name) {
+  const q = query.toLowerCase();
+  const n = name.toLowerCase();
+  if (n === q) return 100;
+  if (n.startsWith(q)) return 80;
+  const parts = n.split(" ");
+  if (parts.some(p => p.startsWith(q))) return 60;
+  if (n.includes(q)) return 40;
+  return 0;
+}
+
+function _buildSearchIndex() {
+  const idx = [];
+  for (const [team, data] of Object.entries(allRosters)) {
+    for (const p of (data.players || [])) {
+      idx.push({ name: p.name, team, position: normalizePos(p.position) });
+    }
+  }
+  return idx;
+}
+
+let _searchIndex = null;
+
+function handleSearchInput() {
+  if (!_searchIndex) _searchIndex = _buildSearchIndex();
+
+  const query = document.getElementById("player-search").value.trim();
+  const dropdown = document.getElementById("search-dropdown");
+
+  if (query.length < 2) {
+    dropdown.style.display = "none";
+    _searchResults = [];
+    _activeResult = -1;
+    return;
+  }
+
+  // Score and sort all players
+  const scored = _searchIndex
+    .map(p => ({ ...p, score: _searchScore(query, p.name) }))
+    .filter(p => p.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);   // show top 8
+
+  _searchResults = scored;
+  _activeResult = -1;
+
+  if (!scored.length) {
+    dropdown.innerHTML = `<div class="search-result-none">No players found for "${query}"</div>`;
+    dropdown.style.display = "block";
+    return;
+  }
+
+  dropdown.innerHTML = scored.map((r, i) => {
+    const meta = TEAM_META[r.team] || {};
+    const rc = readable(meta.color, meta.accent);
+    return `<div class="search-result" data-idx="${i}" onclick="selectSearchResult(${i})">
+      <span class="search-result-team" style="color:${rc||'var(--accent)'}">${r.team}</span>
+      <span class="search-result-name">${r.name}</span>
+      <span class="search-result-pos">${r.position}</span>
+    </div>`;
+  }).join("");
+
+  dropdown.style.display = "block";
+}
+
+function handleSearchKey(e) {
+  const dropdown = document.getElementById("search-dropdown");
+  const results = dropdown.querySelectorAll(".search-result");
+
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    _activeResult = Math.min(_activeResult + 1, results.length - 1);
+    results.forEach((r, i) => r.classList.toggle("active", i === _activeResult));
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    _activeResult = Math.max(_activeResult - 1, 0);
+    results.forEach((r, i) => r.classList.toggle("active", i === _activeResult));
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (_activeResult >= 0 && _searchResults[_activeResult]) {
+      selectSearchResult(_activeResult);
+    } else {
+      commitSearch();
+    }
+  } else if (e.key === "Escape") {
+    closeSearchDropdown();
+  }
+}
+
+function selectSearchResult(idx) {
+  const r = _searchResults[idx];
+  if (!r) return;
+  document.getElementById("player-search").value = r.name;
+  closeSearchDropdown();
+  showAllTeams();
+  showTeamDetail(r.team);
+}
+
+function commitSearch() {
+  const query = document.getElementById("player-search").value.trim().toLowerCase();
+  closeSearchDropdown();
+  if (!query) { showAllTeams(); return; }
+
+  if (!_searchIndex) _searchIndex = _buildSearchIndex();
+  const best = _searchIndex
+    .map(p => ({ ...p, score: _searchScore(query, p.name) }))
+    .filter(p => p.score > 0)
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (best) {
+    showAllTeams();
+    showTeamDetail(best.team);
+  }
+}
+
+function closeSearchDropdown() {
+  document.getElementById("search-dropdown").style.display = "none";
+  _activeResult = -1;
+}
+
+// Close dropdown when clicking outside
+document.addEventListener("click", e => {
+  if (!document.getElementById("search-wrap")?.contains(e.target)) {
+    closeSearchDropdown();
+  }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function hideLoading() {
+  const el = document.getElementById("loading");
+  el.style.opacity = "0";
+  setTimeout(() => { el.style.display = "none"; }, 500);
+}
+
+function showErrorState(msg) {
+  document.getElementById("teams-grid").innerHTML = `
+    <div class="empty" style="grid-column:1/-1">
+      <div class="empty-icon">⚠️</div>
+      <div style="color:var(--accent2);font-weight:600;margin-bottom:8px">Could not load roster data</div>
+      <div style="font-size:0.78rem;max-width:480px;margin:0 auto;line-height:1.6">${msg}</div>
+      <div style="margin-top:12px;font-size:0.72rem;color:var(--muted)">Check your terminal for details, then refresh the page.</div>
+    </div>`;
+  hideLoading();
+}
+
+async function init() {
+  const setStatus = s => { document.getElementById("lo-status").textContent = s; };
+
+  try {
+    setStatus("Fetching full rosters + season stats...");
+    let resp, data;
+
+    try {
+      resp = await fetch("/api/rosters/full");
+    } catch(networkErr) {
+      showErrorState("Network error — is the Flask server running? " + networkErr.message);
+      return;
+    }
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      showErrorState(`Server returned ${resp.status}: ${text.slice(0,200)}`);
+      return;
+    }
+
+    try {
+      data = await resp.json();
+    } catch(jsonErr) {
+      showErrorState("Server response was not valid JSON. Check the terminal for a Python traceback.");
+      return;
+    }
+
+    if (data.error) {
+      showErrorState(data.error);
+      return;
+    }
+
+    allRosters = data.rosters || {};
+
+    if (Object.keys(allRosters).length === 0) {
+      showErrorState("The API returned successfully but no roster data was found. " +
+        "nfl_data_py may not have data for this season yet, or all players were filtered out. " +
+        "Check the server terminal for [rosters] log lines.");
+      return;
+    }
+
+    const season = Object.values(allRosters)[0]?.season || "2025";
+    document.getElementById("season-badge").textContent = `NFL ${season}`;
+
+    const totalPlayers = Object.values(allRosters).reduce((s,r)=>s+(r.players?.length||0),0);
+    // Detect data source from first player
+    const firstTeam = Object.values(allRosters)[0];
+    const firstPlayer = firstTeam?.players?.[0];
+    const source = firstPlayer?.sleeper_id ? "Sleeper API" : "nfl_data_py";
+    const sourceColor = firstPlayer?.sleeper_id ? "var(--accent3)" : "var(--muted)";
+
+    document.getElementById("page-sub").innerHTML =
+      `${Object.keys(allRosters).length} teams &middot; ${totalPlayers} players &middot; ${season} season &middot; ` +
+      `<span style="color:${sourceColor};font-weight:600">Source: ${source}</span>`;
+
+    // Build team cards sorted by division
+    const grid = document.getElementById("teams-grid");
+    const sorted = Object.keys(allRosters).sort((a,b) => {
+      const ma = TEAM_META[a]||{}, mb = TEAM_META[b]||{};
+      const divCmp = (ma.div||"").localeCompare(mb.div||"");
+      return divCmp !== 0 ? divCmp : a.localeCompare(b);
+    });
+
+    grid.innerHTML = sorted.map(abbr => {
+      const card = buildTeamCard(abbr, allRosters[abbr]);
+      return card.replace('<div class="team-card"', `<div class="team-card" data-abbr="${abbr}"`);
+    }).join("");
+
+    // Pre-build search index now that rosters are loaded
+    _searchIndex = _buildSearchIndex();
+
+    hideLoading();
+
+  } catch(e) {
+    console.error("[rosters] Unexpected error:", e);
+    showErrorState("Unexpected error: " + e.message);
+  }
+}
+
+window.addEventListener("DOMContentLoaded", () => setTimeout(init, 200));
+</script>
+</body>
+</html>

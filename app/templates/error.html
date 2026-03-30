@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NFL Oracle — Error</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#080b10; --accent:#00e5ff; --text:#e8eef8; --muted:#7a8aa0; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif;
+         min-height:100vh; display:flex; align-items:center; justify-content:center; }
+  body::before { content:''; position:fixed; inset:0;
+    background-image:linear-gradient(rgba(0,229,255,0.02) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(0,229,255,0.02) 1px,transparent 1px);
+    background-size:60px 60px; pointer-events:none; }
+  .container { text-align:center; padding:2rem; max-width:480px; position:relative; z-index:1; }
+  .icon { font-size:4rem; margin-bottom:1rem; animation:bounce 2s infinite; }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+  h1 { font-family:'Bebas Neue',sans-serif; font-size:2.5rem; letter-spacing:3px;
+       color:var(--accent); margin-bottom:0.5rem; }
+  p { color:var(--muted); margin-bottom:1.5rem; line-height:1.6; }
+  .btn { display:inline-block; background:var(--accent); color:#000; padding:10px 24px;
+         border-radius:8px; text-decoration:none; font-weight:700; font-size:0.85rem;
+         margin:4px; transition:opacity 0.2s; }
+  .btn:hover { opacity:0.85; }
+  .btn-outline { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  .detail { font-size:0.72rem; color:var(--muted); margin-top:1.5rem;
+            padding:0.8rem 1rem; background:rgba(255,255,255,0.03);
+            border:1px solid rgba(255,255,255,0.06); border-radius:8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="icon">🏈</div>
+  <h1>Incomplete Pass</h1>
+  <p>Something went wrong on our end. The model may be retraining, or there was a temporary server error.</p>
+  <div>
+    <a href="/" class="btn">← Back to Predictions</a>
+    <a href="/power-rankings" class="btn btn-outline">Power Rankings</a>
+  </div>
+  <div class="detail">
+    If this keeps happening, try refreshing in a minute.<br>
+    Weekly retraining runs every Tuesday at 6am ET.
+  </div>
+</div>
+</body>
+</html>
