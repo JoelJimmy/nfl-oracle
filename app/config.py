@@ -9,7 +9,10 @@ from pathlib import Path
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR   = Path(__file__).parent.parent
-MODEL_DIR  = BASE_DIR / "app" / "models"
+# On Render with persistent disk, store models in /data. Locally use app/models.
+import os as _os
+_on_render = bool(_os.environ.get("RENDER"))
+MODEL_DIR  = Path("/data/models") if _on_render else BASE_DIR / "app" / "models"
 LOG_DIR    = BASE_DIR / "logs"
 
 MODEL_PATH      = str(MODEL_DIR / "model.pkl")

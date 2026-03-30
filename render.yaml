@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: nfl-oracle
+    runtime: python
+    buildCommand: pip install --upgrade pip setuptools wheel && pip install -r requirements.txt && python -m scripts.train
+    startCommand: python run.py --prod
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: HOST
+        value: 0.0.0.0
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: RESEND_API_KEY
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_EMAIL
+        sync: false
+      - key: SITE_URL
+        sync: false
+      - key: ODDS_API_KEY
+        sync: false
+    disk:
+      name: nfl-oracle-data
+      mountPath: /data
+      sizeGB: 1
