@@ -114,11 +114,20 @@ def add_rolling_features(tg: pd.DataFrame, window: int = ROLLING_WINDOW) -> pd.D
     logger.info(f"Computing rolling {window}-game features + trends...")
     tg = tg.sort_values(["season", "week", "game_id"])
 
-    # Rolling averages
+    # Exponentially weighted rolling averages (EWMA)
+    # Different span sizes per stat type:
+    #   EPA stats: wider span (more games) — EPA is noisy, needs smoothing
+    #   Points/wins: narrower span — more stable, recent form matters more
+    EPA_COLS   = {"offensive_epa", "defensive_epa_allowed", "pass_epa",
+                  "rush_epa", "epa_trend", "def_epa_trend"}
+    EPA_SPAN   = max(window + 4, 12)   # e.g. 12 games for EPA smoothing
+    OTHER_SPAN = window                 # e.g. 8 games for points/wins
+
     for col in STAT_COLS:
+        span = EPA_SPAN if col in EPA_COLS else OTHER_SPAN
         tg[f"roll_{col}"] = (
             tg.groupby("team")[col]
-            .transform(lambda s: s.shift(1).rolling(window, min_periods=MIN_GAMES_REQUIRED).mean())
+            .transform(lambda s, sp=span: s.shift(1).ewm(span=sp, min_periods=MIN_GAMES_REQUIRED).mean())
         )
 
     # EPA trend (slope — positive = improving)
@@ -286,10 +295,17 @@ def build_current_team_profiles(tg, injury_impact, window=ROLLING_WINDOW) -> dic
         if len(recent) < MIN_GAMES_REQUIRED:
             continue
 
+        EPA_COLS   = {"offensive_epa", "defensive_epa_allowed", "pass_epa",
+                      "rush_epa", "epa_trend", "def_epa_trend"}
+        EPA_SPAN   = max(window + 4, 12)
+        OTHER_SPAN = window
+
         stats = {}
         for col in STAT_COLS:
-            val = float(recent[col].mean())
-            # Cap win rate and streak to mid-season realistic ranges
+            span = EPA_SPAN if col in EPA_COLS else OTHER_SPAN
+            ewma_vals = recent[col].ewm(span=span, min_periods=1).mean()
+            val = float(ewma_vals.iloc[-1])
+            # Cap win rate to realistic mid-season ranges
             if col == "won":
                 val = min(0.80, max(0.20, val))
             stats[f"roll_{col}"] = val
